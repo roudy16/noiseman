@@ -22,11 +22,12 @@ test:
 run *args:
     cargo run --quiet -- "$@"
 
-# install binary to ~/.local/bin, icon and desktop entry for the current user
+# install binary to ~/.local/bin, hicolor icons and desktop entry for the current user
 install:
     cargo build --release
     install -Dm755 target/release/noiseman ~/.local/bin/noiseman
-    install -Dm644 assets/noiseman.svg ~/.local/share/icons/noiseman/noiseman.svg
+    install -Dm644 assets/noiseman.svg ~/.local/share/icons/hicolor/scalable/apps/noiseman.svg
+    for s in 48 64 128 256; do install -Dm644 assets/noiseman-$s.png ~/.local/share/icons/hicolor/${s}x${s}/apps/noiseman.png; done
     sed "s|/home/roudy|$HOME|g" assets/noiseman.desktop > ~/.local/share/applications/noiseman.desktop
     -update-desktop-database ~/.local/share/applications
 
