@@ -1,7 +1,7 @@
 use std::fmt;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::atomic::{AtomicU8, AtomicU32};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{
@@ -11,10 +11,23 @@ use cpal::{
 
 use crate::noise::{Kind, Noise};
 
-pub static GAIN: AtomicU32 = AtomicU32::new(0);
-pub static KIND: AtomicU8 = AtomicU8::new(Kind::Brown as u8);
+static GAIN: AtomicU32 = AtomicU32::new(0);
+static KIND: AtomicU8 = AtomicU8::new(Kind::Brown as u8);
 
-pub const BUFFER_FRAMES: u32 = 4096;
+const BUFFER_FRAMES: u32 = 4096;
+const FADE_SECS: f32 = 0.01;
+
+pub fn kind() -> Kind {
+    Kind::from_u8(KIND.load(Relaxed))
+}
+
+pub fn set_kind(k: Kind) {
+    KIND.store(k as u8, Relaxed)
+}
+
+pub fn set_gain(g: f32) {
+    GAIN.store(g.to_bits(), Relaxed)
+}
 
 #[derive(Debug)]
 pub enum AudioError {
@@ -33,20 +46,29 @@ impl fmt::Display for AudioError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             AudioError::NoDevice => f.write_str("no default output device"),
-            AudioError::Format(fmt) => write!(f, "unsupported sample format {fmt}"),
+            AudioError::Format(format) => write!(f, "unsupported sample format {format}"),
             AudioError::Cpal(e) => write!(f, "{e}"),
         }
     }
 }
 
-struct Voice {
-    noise: Noise,
-    cur: Kind,
-    g: f32,
-    k: f32,
+pub struct Output {
+    stream: Stream,
+    rate: SampleRate,
 }
 
-pub fn start(on_lost: impl Fn() + Send + 'static) -> Result<(Stream, SampleRate), AudioError> {
+impl Output {
+    /// One device buffer, truncated to whole milliseconds.
+    pub fn buffer_time(&self) -> Duration {
+        let frames = self.stream.buffer_size().unwrap_or_else(|e| {
+            eprintln!("noiseman: stream buffer size unavailable, assuming {BUFFER_FRAMES}: {e}");
+            BUFFER_FRAMES
+        });
+        Duration::from_millis(u64::from(frames) * 1000 / u64::from(self.rate))
+    }
+}
+
+pub fn start(on_lost: impl Fn() + Send + 'static) -> Result<Output, AudioError> {
     let device = cpal::default_host().default_output_device().ok_or(AudioError::NoDevice)?;
     let supported = device.default_output_config()?;
     let mut config = supported.config();
@@ -63,7 +85,30 @@ pub fn start(on_lost: impl Fn() + Send + 'static) -> Result<(Stream, SampleRate)
         other => return Err(AudioError::Format(other)),
     };
     stream.play()?;
-    Ok((stream, config.sample_rate))
+    Ok(Output { stream, rate: config.sample_rate })
+}
+
+struct Voice {
+    noise: Noise,
+    playing: Kind,
+    level: f32,
+    smoothing: f32,
+}
+
+impl Voice {
+    #[inline]
+    fn step(&mut self, want: Kind, gain: f32) -> f32 {
+        // A kind change fades to silence before switching generators, so it does not click.
+        let target = if want == self.playing { gain } else { 0.0 };
+        self.level += (target - self.level) * self.smoothing;
+        if (target - self.level).abs() < 1e-6 {
+            self.level = target;
+        }
+        if want != self.playing && self.level < 1e-4 {
+            self.playing = want;
+        }
+        self.noise.next(self.playing) * self.level
+    }
 }
 
 fn build<T: SizedSample + FromSample<f32>>(
@@ -76,23 +121,15 @@ fn build<T: SizedSample + FromSample<f32>>(
     let seed = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_nanos() as u64);
     let mut v = Voice {
         noise: Noise::new(sr, seed),
-        cur: Kind::from_u8(KIND.load(Relaxed)),
-        g: 0.0,
-        k: 1.0 - (-1.0 / (0.01 * sr as f32)).exp(),
+        playing: kind(),
+        level: 0.0,
+        smoothing: 1.0 - (-1.0 / (FADE_SECS * sr as f32)).exp(),
     };
     let data = move |data: &mut [T], _: &OutputCallbackInfo| {
-        let want = Kind::from_u8(KIND.load(Relaxed));
+        let want = kind();
         let gain = f32::from_bits(GAIN.load(Relaxed));
         for frame in data.chunks_mut(channels) {
-            let target = if want != v.cur { 0.0 } else { gain };
-            v.g += (target - v.g) * v.k;
-            if (target - v.g).abs() < 1e-6 {
-                v.g = target;
-            }
-            if want != v.cur && v.g < 1e-4 {
-                v.cur = want;
-            }
-            frame.fill(T::from_sample(v.noise.next(v.cur) * v.g));
+            frame.fill(T::from_sample(v.step(want, gain)));
         }
     };
     let error = move |e: cpal::Error| {

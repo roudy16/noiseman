@@ -10,7 +10,7 @@ Desktop noise generator: a bare winit window with hand-drawn controls (softbuffe
 
 - `src/main.rs`: window, event loop, hit-testing, drawing (`Canvas`), mute timer via `ControlFlow::WaitUntil`, `Event` user events (device loss, tray actions) via `EventLoopProxy`, hide/show to tray, non-Linux `tray` stub
 - `src/tray.rs` (Linux only): ksni StatusNotifierItem `Item` (icon `noiseman`, tooltip, menu) and `spawn()`: a worker thread does the D-Bus handshake, sends `Event::TrayReady(Tray)`, then applies `Tray::sync` states
-- `src/audio.rs`: `GAIN`/`KIND` atomics, `AudioError`, `start()`, `build::<T>()`, data and error callbacks
+- `src/audio.rs`: `GAIN`/`KIND` atomics (private; `kind()`, `set_kind()`, `set_gain()`), `AudioError`, `start()` returning `Output` (`buffer_time()`), `build::<T>()`, `Voice::step`, data and error callbacks
 - `src/noise.rs`: `Kind`, `Noise` generators, the one level/bounds test
 
 ## Invariants

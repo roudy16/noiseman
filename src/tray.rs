@@ -6,22 +6,16 @@ use ksni::menu::{CheckmarkItem, StandardItem};
 use ksni::{MenuItem, OfflineReason, ToolTip};
 use winit::event_loop::EventLoopProxy;
 
-use crate::{Event, TrayState};
+use crate::{Event, TrayState, send_or_log};
 
 pub struct Item {
     proxy: EventLoopProxy<Event>,
     state: TrayState,
 }
 
-fn send(proxy: &EventLoopProxy<Event>, e: Event) {
-    if let Err(err) = proxy.send_event(e) {
-        eprintln!("noiseman: cannot forward tray event, event loop gone: {err}");
-    }
-}
-
 impl Item {
     fn send(&self, e: Event) {
-        send(&self.proxy, e);
+        send_or_log(&self.proxy, e, "forward tray event");
     }
 }
 
@@ -39,28 +33,26 @@ impl ksni::Tray for Item {
     }
 
     fn tool_tip(&self) -> ToolTip {
-        let (_, muted, kind) = self.state;
-        let description = format!("{} noise{}", kind.label(), if muted { ", muted" } else { "" });
+        let description = format!("{} noise{}", self.state.kind.label(), if self.state.muted { ", muted" } else { "" });
         ToolTip { title: "noiseman".into(), description, ..Default::default() }
     }
 
     fn activate(&mut self, _: i32, _: i32) {
-        self.send(Event::Toggle);
+        self.send(Event::ToggleWindow);
     }
 
     fn menu(&self) -> Vec<MenuItem<Self>> {
-        let (shown, muted, _) = self.state;
         vec![
             StandardItem {
-                label: if shown { "Hide window" } else { "Show window" }.into(),
-                activate: Box::new(|t: &mut Self| t.send(Event::Toggle)),
+                label: if self.state.shown { "Hide window" } else { "Show window" }.into(),
+                activate: Box::new(|t: &mut Self| t.send(Event::ToggleWindow)),
                 ..Default::default()
             }
             .into(),
             CheckmarkItem {
                 label: "Mute".into(),
-                checked: muted,
-                activate: Box::new(|t: &mut Self| t.send(Event::Mute)),
+                checked: self.state.muted,
+                activate: Box::new(|t: &mut Self| t.send(Event::ToggleMute)),
                 ..Default::default()
             }
             .into(),
@@ -87,14 +79,18 @@ pub fn spawn(proxy: EventLoopProxy<Event>, state: TrayState) {
     thread::spawn(move || {
         let handle = match (Item { proxy: proxy.clone(), state }).spawn() {
             Ok(h) => h,
-            Err(e) => return eprintln!("noiseman: no system tray, closing the window will quit: {e}"),
+            Err(e) => {
+                eprintln!("noiseman: no system tray, closing the window will quit: {e}");
+                return;
+            }
         };
         let (tx, rx) = mpsc::channel();
-        send(&proxy, Event::TrayReady(Tray { tx, last: None }));
+        send_or_log(&proxy, Event::TrayReady(Tray { tx, last: None }), "forward tray event");
         for s in rx {
             if handle.update(|i| i.state = s).is_none() {
                 eprintln!("noiseman: tray service stopped, closing the window will quit");
-                return send(&proxy, Event::TrayGone);
+                send_or_log(&proxy, Event::TrayGone, "forward tray event");
+                return;
             }
         }
     });

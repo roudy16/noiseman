@@ -75,6 +75,12 @@ impl Noise {
         p
     }
 
+    fn diff(&mut self, x: f32) -> f32 {
+        let d = x - self.prev;
+        self.prev = x;
+        d
+    }
+
     pub fn next(&mut self, kind: Kind) -> f32 {
         let s = match kind {
             Kind::White => self.white() * WHITE_GAIN,
@@ -86,15 +92,11 @@ impl Noise {
             }
             Kind::Blue => {
                 let p = self.pink_raw();
-                let d = p - self.prev;
-                self.prev = p;
-                d * BLUE_GAIN
+                self.diff(p) * BLUE_GAIN
             }
             Kind::Violet => {
                 let w = self.white();
-                let d = w - self.prev;
-                self.prev = w;
-                d * VIOLET_GAIN
+                self.diff(w) * VIOLET_GAIN
             }
         };
         s.clamp(-1.0, 1.0)

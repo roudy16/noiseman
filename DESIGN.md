@@ -167,7 +167,7 @@ for frame in data.chunks_mut(channels) {
 - **Type change:** `KIND.store`. The audio callback ramps to about 0 (≤ ~90 ms at full volume), switches generator, and ramps back up.
 - **Mute:**
   1. Set `GAIN = 0`.
-  2. Start a one-shot `Timer` of `100 ms + 2 × buffer duration`. The buffer duration comes from `Stream::buffer_size()` when the host reports it (the cpal docs say not to trust it as a bound), otherwise from the requested 4096 frames. That is about 270 ms at 48 kHz.
+  2. Start a one-shot `Timer` of `100 ms + 3 × buffer duration` (PulseAudio queues up to 3 buffers). The buffer duration comes from `Stream::buffer_size()` when the host reports it (the cpal docs say not to trust it as a bound), otherwise from the requested 4096 frames. That is about 355 ms at 48 kHz.
   3. When the timer fires, if the box is still checked, set `stream = None`. That closes the device: 0 callbacks, 0 CPU.
   - The 100 ms term covers the fade-out. P1's "2 × buffer + 20 ms" would cut the fade short on hosts with 10 ms buffers.
 - **Unmute:** if the stream still exists (the timer hasn't fired yet), just restore `GAIN`. Otherwise set `GAIN = vol²` and call `start()`, which fades in. If `start()` fails, the status line shows why and the box stays checked, so the user can retry by unchecking it.
