@@ -5,14 +5,16 @@ use std::thread;
 
 use crossterm::cursor::{Hide, MoveTo, Show};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use crossterm::style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor};
-use crossterm::terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen};
+use crossterm::style::{
+    self, Attribute, Color, Colored, Print, ResetColor, SetAttribute, SetBackgroundColor, SetForegroundColor,
+};
+use crossterm::terminal::{
+    self, BeginSynchronizedUpdate, Clear, ClearType, EndSynchronizedUpdate, EnterAlternateScreen, LeaveAlternateScreen,
+};
 use crossterm::{execute, queue};
 
 use super::client::{Client, Sender};
 use crate::protocol::{Command, Kind, State};
-
-const BAR: i32 = 20;
 
 enum Ui {
     Input(Event),
@@ -100,6 +102,7 @@ fn exec() -> Result<Option<String>, String> {
         }
     });
 
+    let palette = Palette::detect();
     let mut screen = Screen::enter().map_err(|e| format!("cannot set up terminal: {e}"))?;
     let mut state: Option<State> = None;
     let mut problem: Option<String> = None;
@@ -112,7 +115,7 @@ fn exec() -> Result<Option<String>, String> {
             Ui::Reply(Err(e)) => problem = Some(e),
             Ui::Gone(None) => return Ok(Some("player stopped".into())),
             Ui::Gone(Some(e)) => return Err(e),
-            Ui::Input(Event::Key(key)) => match action(key) {
+            Ui::Input(Event::Key(key)) => match action(key, state.as_ref().map(|s| s.kind)) {
                 Action::None => continue,
                 Action::Leave => return Ok(None),
                 Action::Send(cmd) => request(&mut sender, cmd, &mut problem),
@@ -124,7 +127,7 @@ fn exec() -> Result<Option<String>, String> {
             Ui::Input(Event::Resize(..)) => {}
             Ui::Input(_) => continue,
         }
-        draw(&mut screen.0, state.as_ref(), problem.as_deref()).map_err(|e| format!("cannot draw: {e}"))?;
+        draw(&mut screen.0, &palette, state.as_ref(), problem.as_deref()).map_err(|e| format!("cannot draw: {e}"))?;
     }
     Ok(None)
 }
@@ -142,10 +145,14 @@ enum Action {
     Send(Command),
 }
 
-fn action(key: KeyEvent) -> Action {
+fn action(key: KeyEvent, kind: Option<Kind>) -> Action {
     if key.kind != KeyEventKind::Press {
         return Action::None;
     }
+    let cycle = |step: usize| match kind.and_then(|k| Kind::ALL.iter().position(|&a| a == k)) {
+        Some(i) => Action::Send(Command::Kind(Kind::ALL[(i + step) % Kind::ALL.len()])),
+        None => Action::None,
+    };
     match key.code {
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::Leave,
         _ if key.modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) => Action::None,
@@ -155,30 +162,158 @@ fn action(key: KeyEvent) -> Action {
         KeyCode::Left | KeyCode::Char('-' | 'h') => Action::Send(Command::VolBy(-5)),
         KeyCode::Right | KeyCode::Char('+' | '=' | 'l') => Action::Send(Command::VolBy(5)),
         KeyCode::Char(c @ '1'..='5') => Action::Send(Command::Kind(Kind::ALL[c as usize - '1' as usize])),
+        KeyCode::Up | KeyCode::BackTab | KeyCode::Char('k') => cycle(Kind::ALL.len() - 1),
+        KeyCode::Down | KeyCode::Tab | KeyCode::Char('j') => cycle(1),
         _ => Action::None,
     }
 }
 
-fn draw(out: &mut Stdout, state: Option<&State>, problem: Option<&str>) -> io::Result<()> {
-    queue!(out, Clear(ClearType::All), MoveTo(1, 1), SetAttribute(Attribute::Bold), Print("noiseman"))?;
-    queue!(out, SetAttribute(Attribute::Reset))?;
-    if let Some(s) = state {
-        queue!(out, MoveTo(1, 3))?;
-        for (i, k) in Kind::ALL.iter().enumerate() {
-            let attr = if *k == s.kind { Attribute::Reverse } else { Attribute::NoReverse };
-            queue!(out, SetAttribute(attr), Print(format!(" {} {} ", i + 1, k.label())), SetAttribute(Attribute::Reset))?;
-            queue!(out, Print(" "))?;
+/// The colors for the terminal's depth: truecolor as is, 256 colors via the xterm cube, else none
+/// (crossterm then drops every color sequence, and the layout leans on glyphs and bold/underline).
+struct Palette {
+    mono: bool,
+    amber: Color,
+    track: Color,
+    green: Color,
+    red: Color,
+    tile: Color,
+}
+
+impl Palette {
+    fn detect() -> Palette {
+        let var = |name| std::env::var(name).unwrap_or_default();
+        let (colorterm, term) = (var("COLORTERM"), var("TERM"));
+        let truecolor = colorterm.contains("truecolor") || colorterm.contains("24bit");
+        let depth = if truecolor { u16::MAX } else if term.contains("256") { 256 } else { 8 };
+        let mono = depth < 256 || Colored::ansi_color_disabled();
+        if mono {
+            style::force_color_output(false);
         }
-        let filled = (s.vol * BAR / 100) as usize;
-        let bar = format!("[{}{}] {:>3}%", "#".repeat(filled), "-".repeat(BAR as usize - filled), s.vol);
-        queue!(out, MoveTo(1, 5), Print("Volume "), Print(bar))?;
-        queue!(out, MoveTo(1, 7), Print(if s.muted { "Muted" } else { "Playing" }))?;
+        let c = |r: u8, g: u8, b: u8| if depth == 256 { cube(r, g, b) } else { Color::Rgb { r, g, b } };
+        Palette {
+            mono,
+            amber: c(0xd0, 0x8f, 0x4a),
+            track: c(0x9a, 0x86, 0x76),
+            green: c(0x4c, 0xae, 0x5a),
+            red: c(0xd9, 0x4f, 0x45),
+            tile: c(0x2e, 0x21, 0x18),
+        }
     }
-    if let Some(e) = problem.or(state.and_then(|s| s.error.as_deref())) {
-        queue!(out, MoveTo(1, 9), SetForegroundColor(Color::Red), Print(e), ResetColor)?;
+}
+
+/// Nearest xterm-256 color: the 6x6x6 cube or the gray ramp, whichever is closer.
+fn cube(r: u8, g: u8, b: u8) -> Color {
+    let level = |v: u8| if v < 48 { 0 } else if v < 115 { 1 } else { (v - 35) / 40 };
+    let value = |l: u8| if l == 0 { 0 } else { 55 + 40 * l as i32 };
+    let dist = |x: [i32; 3]| x.iter().zip([r, g, b]).map(|(a, b)| (a - b as i32).pow(2)).sum::<i32>();
+    let (lr, lg, lb) = (level(r), level(g), level(b));
+    let gray = ((r as i32 + g as i32 + b as i32) / 3 - 3).clamp(0, 230) / 10;
+    let gv = 8 + 10 * gray;
+    if dist([gv; 3]) < dist([value(lr), value(lg), value(lb)]) {
+        Color::AnsiValue(232 + gray as u8)
+    } else {
+        Color::AnsiValue(16 + 36 * lr + 6 * lg + lb)
     }
-    queue!(out, MoveTo(1, 11), SetAttribute(Attribute::Dim))?;
-    queue!(out, Print("1-5 noise  \u{2190}/\u{2192} volume  m mute  q leave (keeps playing)  s stop"))?;
-    queue!(out, SetAttribute(Attribute::Reset))?;
+}
+const LOGO: [&str; 2] = ["  ▃ ▆▁ ▄ ▇  ▂ ", " ▅█▇██▃█▆██▄█ "];
+const KEYS: [(&str, &str); 5] = [("1-5 ↑↓", "noise"), ("←→", "volume"), ("m", "mute"), ("q", "leave (keeps playing)"), ("s", "stop")];
+const KEYS_SHORT: [(&str, &str); 5] = [("1-5", "noise"), ("←→", "vol"), ("m", "mute"), ("q", "leave"), ("s", "stop")];
+
+fn hint_width(keys: &[(&str, &str)], sep: usize) -> u16 {
+    let text: usize = keys.iter().map(|(k, d)| k.chars().count() + 1 + d.len()).sum();
+    (text + sep * (keys.len() - 1)) as u16
+}
+
+fn draw(out: &mut Stdout, p: &Palette, state: Option<&State>, problem: Option<&str>) -> io::Result<()> {
+    let (cols, rows) = terminal::size()?;
+    let error = problem.or(state.and_then(|s| s.error.as_deref()));
+    let full = cols >= 58 && rows >= 15;
+    let (w, padx, pady) = if full { (46, 4, 2) } else { (38.min(cols), 0, 0) };
+    let (bw, bh) = (w + 2 * padx, if error.is_some() { 8 } else { 6 } + 2 * pady);
+    let left = cols.saturating_sub(bw) / 2;
+    let top = rows.saturating_sub(bh + 2) / 2;
+    let (x, y) = (left + padx, top + pady);
+    queue!(out, BeginSynchronizedUpdate, Clear(ClearType::All))?;
+    if cols < 34 || rows < 8 {
+        queue!(out, MoveTo(0, 0), Print("noiseman: terminal too small"), EndSynchronizedUpdate)?;
+        return out.flush();
+    }
+    let logo = if state.is_some_and(|s| s.muted) { p.track } else { p.amber };
+    if full {
+        let rule = "─".repeat(bw as usize - 2);
+        queue!(out, SetForegroundColor(p.track), MoveTo(left, top), Print(format!("╭{rule}╮")))?;
+        for r in 1..bh - 1 {
+            queue!(out, MoveTo(left, top + r), Print("│"), MoveTo(left + bw - 1, top + r), Print("│"))?;
+        }
+        queue!(out, MoveTo(left, top + bh - 1), Print(format!("╰{rule}╯")))?;
+        queue!(out, SetForegroundColor(logo), SetBackgroundColor(p.tile), MoveTo(x, y), Print(LOGO[0]))?;
+        queue!(out, MoveTo(x, y + 1), Print(LOGO[1]), ResetColor, SetForegroundColor(p.amber), SetAttribute(Attribute::Bold))?;
+        queue!(out, MoveTo(x + 17, y), Print("noiseman"), SetAttribute(Attribute::Reset), ResetColor)?;
+        queue!(out, SetAttribute(Attribute::Dim), MoveTo(x + 17, y + 1), Print("noise generator"))?;
+    } else {
+        queue!(out, MoveTo(x, y), SetForegroundColor(p.amber), SetAttribute(Attribute::Bold), Print("noiseman"))?;
+    }
+    queue!(out, SetAttribute(Attribute::Reset), ResetColor)?;
+    if let Some(s) = state {
+        if s.muted {
+            queue!(out, MoveTo(x + w.saturating_sub(7), y), SetAttribute(Attribute::Dim), Print("◌ Muted"))?;
+        } else {
+            queue!(out, MoveTo(x + w.saturating_sub(9), y), SetForegroundColor(p.green), Print("● "), ResetColor, Print("Playing"))?;
+        }
+        queue!(out, SetAttribute(Attribute::Reset), MoveTo(x, y + 3))?;
+        let labels: u16 = Kind::ALL.iter().map(|k| k.label().len() as u16).sum();
+        let digits = if full { 2 * Kind::ALL.len() as u16 } else { 0 };
+        let gap = " ".repeat((w.saturating_sub(labels + digits) / 4) as usize);
+        for (i, k) in Kind::ALL.iter().enumerate() {
+            if i > 0 {
+                queue!(out, Print(&gap))?;
+            }
+            let selected = *k == s.kind;
+            if full {
+                let digit = if selected { SetForegroundColor(p.amber) } else { SetForegroundColor(p.track) };
+                queue!(out, digit, Print(i + 1), Print(" "), ResetColor)?;
+            }
+            if selected {
+                let mark = if p.mono { Attribute::Underlined } else { Attribute::Bold };
+                queue!(out, SetForegroundColor(p.amber), SetAttribute(Attribute::Bold), SetAttribute(mark), Print(k.label()))?;
+                queue!(out, SetAttribute(Attribute::Reset), ResetColor)?;
+            } else {
+                queue!(out, Print(k.label()))?;
+            }
+        }
+        let bar = w.saturating_sub(5) as i32;
+        let filled = (s.vol.clamp(0, 100) * bar / 100) as usize;
+        let fill = if s.muted { p.track } else { p.amber };
+        let (on, off) = if p.mono { ("━", "─") } else { ("▬", "▬") };
+        queue!(out, MoveTo(x, y + 5), SetForegroundColor(fill), Print(on.repeat(filled)), SetForegroundColor(p.track))?;
+        queue!(out, SetAttribute(Attribute::Dim), Print(off.repeat(bar as usize - filled)), SetAttribute(Attribute::Reset))?;
+        queue!(out, ResetColor, Print(format!("{:>5}", format!("{}%", s.vol))))?;
+    }
+    if let Some(e) = error {
+        let e: String = format!("✕ {e}").chars().take(w as usize).collect();
+        queue!(out, MoveTo(x, y + 7), SetForegroundColor(p.red), Print(e), ResetColor)?;
+    }
+    let (keys, sep) = if hint_width(&KEYS, 3) <= cols { (&KEYS, 3) } else { (&KEYS_SHORT, 1) };
+    queue!(out, MoveTo(cols.saturating_sub(hint_width(keys, sep)) / 2, top + bh + 1))?;
+    for (i, (key, desc)) in keys.iter().enumerate() {
+        let lead = if i > 0 { &"   "[..sep] } else { "" };
+        queue!(out, Print(lead), SetForegroundColor(p.amber), SetAttribute(Attribute::Bold), Print(key))?;
+        queue!(out, SetAttribute(Attribute::Reset), ResetColor, SetAttribute(Attribute::Dim), Print(" "), Print(desc))?;
+        queue!(out, SetAttribute(Attribute::Reset))?;
+    }
+    queue!(out, EndSynchronizedUpdate)?;
     out.flush()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cube_picks_nearest_xterm_color() {
+        assert_eq!(cube(0xd0, 0x8f, 0x4a), Color::AnsiValue(173));
+        assert_eq!(cube(0x2e, 0x21, 0x18), Color::AnsiValue(235));
+        assert_eq!(cube(0, 0, 0), Color::AnsiValue(16));
+        assert_eq!(cube(255, 255, 255), Color::AnsiValue(231));
+    }
 }

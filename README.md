@@ -7,8 +7,9 @@ feature. See `DESIGN.md`.
 
 ## Usage
 
-- `noiseman`: terminal UI. `1`–`5` noise, `←`/`→` volume, `m`/Space mute,
-  `q` leave (noise keeps playing), `s` stop the player.
+- `noiseman`: terminal UI. `1`–`5`, `↑`/`↓` or Tab noise, `←`/`→` volume, `m`/Space mute,
+  `q` leave (noise keeps playing), `s` stop the player. Monochrome under
+  `NO_COLOR` or on terminals with fewer than 256 colors.
 - `noiseman play [KIND]`, `stop`, `mute`, `unmute`, `toggle`,
   `kind KIND`, `vol N|+N|-N`, `status`.
 - `noiseman daemon`: run the player in the foreground. Commands that should
