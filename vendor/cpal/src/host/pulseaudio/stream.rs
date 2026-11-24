@@ -1,3 +1,8 @@
+// Modified by noiseman (2026-11-24) from cpal 0.18.2, under the Apache License 2.0 (see ../../../LICENSE).
+// Change: the playback latency thread no longer wakes on every write or every LATENCY_MAX_INTERVAL, only on
+// play/pause/drop (the per-write notify in the write callback is removed). Changed lines are marked
+// "noiseman patch". Effect: OutputCallbackInfo timestamps go stale; noiseman ignores them.
+
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},

@@ -48,6 +48,20 @@ host works; the page is about 18 KB including the ~6 KB WebAssembly module. `.gi
 GitHub Pages on every push to `main` that touches it (one-time setup: Settings → Pages → Source: GitHub
 Actions; free for public repositories).
 
+## License
+
+MIT, see `LICENSE`, for everything except `vendor/`.
+
+`vendor/` holds two third-party crates under their own licenses, each with a small change (described at the top of
+the changed file and in `AGENTS.md`):
+
+- `vendor/cpal`: cpal 0.18.2, Apache License 2.0 (`vendor/cpal/LICENSE`)
+- `vendor/pulseaudio`: pulseaudio 0.3.2 by Colin Marc, MIT (`vendor/pulseaudio/LICENSE.md`)
+
+All other dependencies come from crates.io under permissive licenses (MIT, Apache-2.0, BSD-2/3-Clause, ISC, Zlib,
+Unlicense); `cargo tree -f '{p} {l}'` lists them. The web demo's WebAssembly is built only from `crates/core` and
+`web/`, with no third-party crates.
+
 ## TODO
 
 - [ ] **Windows support.** The player and its clients talk over a Unix socket

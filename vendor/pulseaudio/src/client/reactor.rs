@@ -1,3 +1,7 @@
+// Modified by noiseman (2026-11-24) from pulseaudio 0.3.2, under the MIT License (see ../../LICENSE.md).
+// Changes, each marked "noiseman patch": Reactor::recv reads in 64 KiB chunks instead of zero-filling 1 MiB per
+// read, and handle_command removes a playback stream on PlaybackStreamKilled.
+
 use std::{
     collections::BTreeMap,
     io::{self},

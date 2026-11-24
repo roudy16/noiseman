@@ -48,6 +48,7 @@ Cargo workspace: the root package `noiseman` (the binary), `crates/core` and `we
 - GUI (Linux tray): closing the window hides to tray (drops window and surface); with no tray, closing quits and stops the player. Tray callbacks only `send_event`; zbus calls stay off the winit thread. ksni uses `blocking` + `tokio`.
 - Dependencies: noiseman-core, cpal, crossterm, libc; with `gui`: winit, softbuffer, font8x8, ksni (Linux). No GPU, no toolkit.
 - Unix only (the socket); Windows would need another transport.
-- Vendored crates, wired in via `[patch.crates-io]`; re-apply or drop each change when upgrading:
+- Licenses: our crates are MIT (`LICENSE`, `license = "MIT"`). New dependencies must be permissive (no GPL/LGPL/AGPL/MPL); check with `cargo tree -f '{p} {l}'`.
+- Vendored crates, wired in via `[patch.crates-io]`; re-apply or drop each change when upgrading. Keep each crate's LICENSE file, and the "Modified by noiseman" header at the top of every changed file (Apache-2.0 §4(b) for cpal):
   - `vendor/pulseaudio`: pulseaudio 0.3.2 (pruned to `src/`, `Cargo.toml`, `LICENSE.md`) with two changes in `client/reactor.rs`: `Reactor::recv` reads in 64 KiB chunks instead of zero-filling 1 MiB per read, and `handle_command` removes a stream on `PlaybackStreamKilled` (upstream ignored it, so a server-killed stream was never reported and dropping it hung).
   - `vendor/cpal`: cpal 0.18.2 (pruned to `src/`, `build.rs`, `Cargo.toml`, `LICENSE`) with one change in `host/pulseaudio/stream.rs`: the playback latency thread no longer wakes per write or every 100 ms, only on play/pause/drop, so `OutputCallbackInfo` timestamps go stale (noiseman ignores them).
