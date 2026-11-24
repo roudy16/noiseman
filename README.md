@@ -16,5 +16,5 @@ All dev workflows go through `just` (run `just` alone to list recipes):
 - `just build` — compile
 - `just test` — run tests (cargo test)
 - `just run [args...]` — run the binary
-- `just install` — install the binary (cargo install)
+- `just install` — install to `~/.local/bin`, plus icon (`~/.local/share/icons/noiseman/`) and desktop entry (`~/.local/share/applications/noiseman.desktop`)
 - `just clean` — remove build artifacts

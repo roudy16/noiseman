@@ -208,6 +208,8 @@ impl ApplicationHandler for App {
             .with_title("noiseman")
             .with_inner_size(LogicalSize::new(WIN_W, WIN_H))
             .with_resizable(false);
+        #[cfg(all(unix, not(target_vendor = "apple")))]
+        let attrs = winit::platform::wayland::WindowAttributesExtWayland::with_name(attrs, "noiseman", "noiseman");
         let window = match el.create_window(attrs) {
             Ok(w) => Rc::new(w),
             Err(e) => {

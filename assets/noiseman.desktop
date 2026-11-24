@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=noiseman
+Comment=Noise generator (white, pink, brown, blue, violet)
+Exec=/home/roudy/.local/bin/noiseman
+Icon=/home/roudy/.local/share/icons/noiseman/noiseman.svg
+Terminal=false
+Categories=AudioVideo;Audio;
+Keywords=noise;white;pink;brown;sleep;focus;
+StartupWMClass=noiseman

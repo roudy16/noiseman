@@ -22,9 +22,13 @@ test:
 run *args:
     cargo run --quiet -- "$@"
 
-# install the binary (cargo install)
+# install binary to ~/.local/bin, icon and desktop entry for the current user
 install:
-    cargo install --path .
+    cargo build --release
+    install -Dm755 target/release/noiseman ~/.local/bin/noiseman
+    install -Dm644 assets/noiseman.svg ~/.local/share/icons/noiseman/noiseman.svg
+    sed "s|/home/roudy|$HOME|g" assets/noiseman.desktop > ~/.local/share/applications/noiseman.desktop
+    -update-desktop-database ~/.local/share/applications
 
 # remove build artifacts
 clean:
