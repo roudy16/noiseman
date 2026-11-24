@@ -172,10 +172,13 @@ fn action(key: KeyEvent, kind: Option<Kind>) -> Action {
 /// (crossterm then drops every color sequence, and the layout leans on glyphs and bold/underline).
 struct Palette {
     mono: bool,
-    amber: Color,
+    depth: u16,
+}
+
+/// The current noise kind's colors: its accent, a muted track and a dark logo tile.
+struct Theme {
+    accent: Color,
     track: Color,
-    green: Color,
-    red: Color,
     tile: Color,
 }
 
@@ -189,15 +192,33 @@ impl Palette {
         if mono {
             style::force_color_output(false);
         }
-        let c = |r: u8, g: u8, b: u8| if depth == 256 { cube(r, g, b) } else { Color::Rgb { r, g, b } };
-        Palette {
-            mono,
-            amber: c(0xd0, 0x8f, 0x4a),
-            track: c(0x9a, 0x86, 0x76),
-            green: c(0x4c, 0xae, 0x5a),
-            red: c(0xd9, 0x4f, 0x45),
-            tile: c(0x2e, 0x21, 0x18),
-        }
+        Palette { mono, depth }
+    }
+
+    fn rgb(&self, [r, g, b]: [u8; 3]) -> Color {
+        if self.depth == 256 { cube(r, g, b) } else { Color::Rgb { r, g, b } }
+    }
+
+    fn green(&self) -> Color {
+        self.rgb([0x4c, 0xae, 0x5a])
+    }
+
+    fn red(&self) -> Color {
+        self.rgb([0xd9, 0x4f, 0x45])
+    }
+
+    /// Accents are mid-tones so they read on dark and light backgrounds alike.
+    fn theme(&self, kind: Kind) -> Theme {
+        let accent = match kind {
+            Kind::White => [0x8c, 0x96, 0xa8],
+            Kind::Pink => [0xd4, 0x70, 0x8f],
+            Kind::Brown => [0xd0, 0x8f, 0x4a],
+            Kind::Blue => [0x4f, 0x8f, 0xd6],
+            Kind::Violet => [0x9b, 0x74, 0xd6],
+        };
+        let track = accent.map(|v| ((v as u16 * 35 + 0x8a * 65) / 100) as u8);
+        let tile = accent.map(|v| (v as u16 * 22 / 100) as u8);
+        Theme { accent: self.rgb(accent), track: self.rgb(track), tile: self.rgb(tile) }
     }
 }
 
@@ -238,27 +259,28 @@ fn draw(out: &mut Stdout, p: &Palette, state: Option<&State>, problem: Option<&s
         queue!(out, MoveTo(0, 0), Print("noiseman: terminal too small"), EndSynchronizedUpdate)?;
         return out.flush();
     }
-    let logo = if state.is_some_and(|s| s.muted) { p.track } else { p.amber };
+    let t = p.theme(state.map_or(Kind::Brown, |s| s.kind));
+    let logo = if state.is_some_and(|s| s.muted) { t.track } else { t.accent };
     if full {
         let rule = "─".repeat(bw as usize - 2);
-        queue!(out, SetForegroundColor(p.track), MoveTo(left, top), Print(format!("╭{rule}╮")))?;
+        queue!(out, SetForegroundColor(t.track), MoveTo(left, top), Print(format!("╭{rule}╮")))?;
         for r in 1..bh - 1 {
             queue!(out, MoveTo(left, top + r), Print("│"), MoveTo(left + bw - 1, top + r), Print("│"))?;
         }
         queue!(out, MoveTo(left, top + bh - 1), Print(format!("╰{rule}╯")))?;
-        queue!(out, SetForegroundColor(logo), SetBackgroundColor(p.tile), MoveTo(x, y), Print(LOGO[0]))?;
-        queue!(out, MoveTo(x, y + 1), Print(LOGO[1]), ResetColor, SetForegroundColor(p.amber), SetAttribute(Attribute::Bold))?;
+        queue!(out, SetForegroundColor(logo), SetBackgroundColor(t.tile), MoveTo(x, y), Print(LOGO[0]))?;
+        queue!(out, MoveTo(x, y + 1), Print(LOGO[1]), ResetColor, SetForegroundColor(t.accent), SetAttribute(Attribute::Bold))?;
         queue!(out, MoveTo(x + 17, y), Print("noiseman"), SetAttribute(Attribute::Reset), ResetColor)?;
         queue!(out, SetAttribute(Attribute::Dim), MoveTo(x + 17, y + 1), Print("noise generator"))?;
     } else {
-        queue!(out, MoveTo(x, y), SetForegroundColor(p.amber), SetAttribute(Attribute::Bold), Print("noiseman"))?;
+        queue!(out, MoveTo(x, y), SetForegroundColor(t.accent), SetAttribute(Attribute::Bold), Print("noiseman"))?;
     }
     queue!(out, SetAttribute(Attribute::Reset), ResetColor)?;
     if let Some(s) = state {
         if s.muted {
             queue!(out, MoveTo(x + w.saturating_sub(7), y), SetAttribute(Attribute::Dim), Print("◌ Muted"))?;
         } else {
-            queue!(out, MoveTo(x + w.saturating_sub(9), y), SetForegroundColor(p.green), Print("● "), ResetColor, Print("Playing"))?;
+            queue!(out, MoveTo(x + w.saturating_sub(9), y), SetForegroundColor(p.green()), Print("● "), ResetColor, Print("Playing"))?;
         }
         queue!(out, SetAttribute(Attribute::Reset), MoveTo(x, y + 3))?;
         let labels: u16 = Kind::ALL.iter().map(|k| k.label().len() as u16).sum();
@@ -270,12 +292,12 @@ fn draw(out: &mut Stdout, p: &Palette, state: Option<&State>, problem: Option<&s
             }
             let selected = *k == s.kind;
             if full {
-                let digit = if selected { SetForegroundColor(p.amber) } else { SetForegroundColor(p.track) };
+                let digit = if selected { SetForegroundColor(t.accent) } else { SetForegroundColor(t.track) };
                 queue!(out, digit, Print(i + 1), Print(" "), ResetColor)?;
             }
             if selected {
                 let mark = if p.mono { Attribute::Underlined } else { Attribute::Bold };
-                queue!(out, SetForegroundColor(p.amber), SetAttribute(Attribute::Bold), SetAttribute(mark), Print(k.label()))?;
+                queue!(out, SetForegroundColor(t.accent), SetAttribute(Attribute::Bold), SetAttribute(mark), Print(k.label()))?;
                 queue!(out, SetAttribute(Attribute::Reset), ResetColor)?;
             } else {
                 queue!(out, Print(k.label()))?;
@@ -283,21 +305,21 @@ fn draw(out: &mut Stdout, p: &Palette, state: Option<&State>, problem: Option<&s
         }
         let bar = w.saturating_sub(5) as i32;
         let filled = (s.vol.clamp(0, 100) * bar / 100) as usize;
-        let fill = if s.muted { p.track } else { p.amber };
+        let fill = if s.muted { t.track } else { t.accent };
         let (on, off) = if p.mono { ("━", "─") } else { ("▬", "▬") };
-        queue!(out, MoveTo(x, y + 5), SetForegroundColor(fill), Print(on.repeat(filled)), SetForegroundColor(p.track))?;
+        queue!(out, MoveTo(x, y + 5), SetForegroundColor(fill), Print(on.repeat(filled)), SetForegroundColor(t.track))?;
         queue!(out, SetAttribute(Attribute::Dim), Print(off.repeat(bar as usize - filled)), SetAttribute(Attribute::Reset))?;
         queue!(out, ResetColor, Print(format!("{:>5}", format!("{}%", s.vol))))?;
     }
     if let Some(e) = error {
         let e: String = format!("✕ {e}").chars().take(w as usize).collect();
-        queue!(out, MoveTo(x, y + 7), SetForegroundColor(p.red), Print(e), ResetColor)?;
+        queue!(out, MoveTo(x, y + 7), SetForegroundColor(p.red()), Print(e), ResetColor)?;
     }
     let (keys, sep) = if hint_width(&KEYS, 3) <= cols { (&KEYS, 3) } else { (&KEYS_SHORT, 1) };
     queue!(out, MoveTo(cols.saturating_sub(hint_width(keys, sep)) / 2, top + bh + 1))?;
     for (i, (key, desc)) in keys.iter().enumerate() {
         let lead = if i > 0 { &"   "[..sep] } else { "" };
-        queue!(out, Print(lead), SetForegroundColor(p.amber), SetAttribute(Attribute::Bold), Print(key))?;
+        queue!(out, Print(lead), SetForegroundColor(t.accent), SetAttribute(Attribute::Bold), Print(key))?;
         queue!(out, SetAttribute(Attribute::Reset), ResetColor, SetAttribute(Attribute::Dim), Print(" "), Print(desc))?;
         queue!(out, SetAttribute(Attribute::Reset))?;
     }

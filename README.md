@@ -43,3 +43,10 @@ For the window: `cargo build --release --features gui`.
   pipe (`\\.\pipe\noiseman-<user>`), plus a replacement for `setsid` when
   autostarting the player and for the lock/runtime-dir logic. The TUI
   (crossterm) and the audio (cpal/WASAPI) already support Windows.
+- [ ] **Rain and thunderstorm.** Two more kinds: steady rain, and rain with
+  occasional thunder (a noise bed plus sparse droplet transients; thunder as
+  rare low-passed rumbles). Each sets its own readable TUI theme, as the
+  noise kinds do (e.g. slate-teal for rain, deep indigo with a pale flash
+  accent for thunder). Adds `Kind` variants, so it touches the protocol, the
+  backend generators (and their level test), the TUI's `1`-`5` keys and the
+  GUI.
