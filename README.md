@@ -34,6 +34,7 @@ All dev workflows go through `just` (run `just` alone to list recipes):
 - `just fmt` — format the code (rustfmt)
 - `just lint` — clippy with warnings as errors: with and without the `gui` feature, and for the wasm target
 - `just check` — format check, lint, tests and quality gates
+- `just deps` — dependency health (needs network): known vulnerabilities and unmaintained crates (OSV/RustSec) for every locked crate, and direct or vendored crates behind their latest release
 - `just gates` — size, CPU and memory limits from `gates.toml` (about 2 s; needs PulseAudio for the runtime part)
 - `just web` / `just web-serve` — build / serve the browser demo
 - `just run [args...]` — run the binary

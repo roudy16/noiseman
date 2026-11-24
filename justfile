@@ -46,6 +46,11 @@ gates: web
     cargo build -q --release -p noiseman-core --example noise_profile
     python3 tools/gates.py
 
+# dependency health (network, ~1 s): advisories for every locked crate (OSV/RustSec), and drift of direct and
+# vendored crates from their latest stable release; exits 1 only on a vulnerability
+deps:
+    python3 tools/deps.py
+
 # install binary (plus an `nsm` alias) to ~/.local/bin, hicolor icons and desktop entry for the current user
 install:
     cargo build --release
