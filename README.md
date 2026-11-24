@@ -7,6 +7,11 @@ softbuffer, no GPU, no toolkit); audio goes through cpal. See `DESIGN.md`.
 Controls: click a noise button or press 1–5; click/drag the volume bar or use
 Left/Right; click Mute or press M/Space.
 
+On Linux with a system tray (StatusNotifierItem, e.g. COSMIC or KDE), closing
+the window hides it to the tray and the noise keeps playing. Left-click the tray
+icon to show or hide the window; its menu has Show/Hide window, Mute and Quit.
+Without a tray, closing the window quits.
+
 Build prerequisites: a Rust toolchain; on Linux also `libasound2-dev`
 (cpal's ALSA fallback). Audio uses PulseAudio/pipewire-pulse when available.
 

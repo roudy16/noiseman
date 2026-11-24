@@ -6,6 +6,7 @@
 > - **Cost:** no native look, no accessibility, no IME, integer HiDPI scaling and ASCII-only text. All accepted for this app.
 > - **Audio:** cpal now uses the `pulseaudio` feature. That avoids the ALSA→PipeWire plugin and saves about 4 MB and one thread. The Pulse host reports I32 as its default format, so `audio.rs` handles `SampleFormat::I32`.
 > - **Default noise:** brown.
+> - **System tray (Linux only):** `ksni` 0.3.7 (pure-Rust StatusNotifierItem + dbusmenu), features `blocking` + `tokio`. Closing the window drops the window and surface (Wayland cannot hide a window) and keeps audio playing; the tray icon toggles it, and the menu has Show/Hide, Mute and Quit. Without a tray, closing quits. D-Bus work runs on a worker thread so a stalled watcher cannot freeze the window. Cost, measured: +1.3 MB binary, two idle threads with 0 wakeups, about +1.4 MB RSS while playing; muted and hidden is 8.4 MB RSS, 4.8 MB private. The `async-io` backend was rejected: 4 extra threads, one of which wakes every 500 ms.
 
 
 ## 1. Summary

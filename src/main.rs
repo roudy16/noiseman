@@ -2,6 +2,20 @@
 
 mod audio;
 mod noise;
+#[cfg(target_os = "linux")]
+mod tray;
+#[cfg(not(target_os = "linux"))]
+mod tray {
+    pub enum Tray {}
+
+    pub fn spawn(_: winit::event_loop::EventLoopProxy<crate::Event>, _: crate::TrayState) {}
+
+    impl Tray {
+        pub fn sync(&mut self, _: crate::TrayState) {
+            match *self {}
+        }
+    }
+}
 
 use std::num::NonZeroU32;
 use std::rc::Rc;
@@ -21,6 +35,18 @@ use audio::{BUFFER_FRAMES, GAIN, KIND};
 use noise::Kind;
 
 type Rect = (i32, i32, i32, i32);
+type TrayState = (bool, bool, Kind);
+
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+enum Event {
+    AudioLost,
+    Toggle,
+    Mute,
+    Quit,
+    TrayGone,
+    TrayReady(tray::Tray),
+}
+
 const PAD: i32 = 8;
 const BTN_W: i32 = 56;
 const ROW_H: i32 = 20;
@@ -85,7 +111,8 @@ impl Canvas<'_> {
 }
 
 struct App {
-    proxy: EventLoopProxy<()>,
+    proxy: EventLoopProxy<Event>,
+    tray: Option<tray::Tray>,
     window: Option<Rc<Window>>,
     surface: Option<softbuffer::Surface<Rc<Window>, Rc<Window>>>,
     stream: Option<(cpal::Stream, cpal::SampleRate)>,
@@ -101,7 +128,7 @@ impl App {
     fn play(&mut self) {
         let proxy = self.proxy.clone();
         let on_lost = move || {
-            if let Err(e) = proxy.send_event(()) {
+            if let Err(e) = proxy.send_event(Event::AudioLost) {
                 eprintln!("noiseman: cannot signal audio loss, event loop gone: {e}");
             }
         };
@@ -164,13 +191,51 @@ impl App {
         } else {
             return;
         }
-        self.redraw_later();
+        self.refresh();
     }
 
-    fn redraw_later(&self) {
+    fn refresh(&mut self) {
         if let Some(w) = &self.window {
             w.request_redraw();
         }
+        let state = (self.window.is_some(), self.muted, Kind::from_u8(KIND.load(Relaxed)));
+        if let Some(t) = &mut self.tray {
+            t.sync(state);
+        }
+    }
+
+    fn hide(&mut self) {
+        self.surface = None;
+        self.window = None;
+        self.dragging = false;
+    }
+
+    fn show(&mut self, el: &ActiveEventLoop) {
+        let attrs = Window::default_attributes()
+            .with_title("noiseman")
+            .with_inner_size(LogicalSize::new(WIN_W, WIN_H))
+            .with_resizable(false);
+        #[cfg(all(unix, not(target_vendor = "apple")))]
+        let attrs = winit::platform::wayland::WindowAttributesExtWayland::with_name(attrs, "noiseman", "noiseman");
+        let window = match el.create_window(attrs) {
+            Ok(w) => Rc::new(w),
+            Err(e) => {
+                eprintln!("noiseman: cannot create window: {e}");
+                el.exit();
+                return;
+            }
+        };
+        let surface = softbuffer::Context::new(window.clone())
+            .and_then(|ctx| softbuffer::Surface::new(&ctx, window.clone()));
+        match surface {
+            Ok(s) => self.surface = Some(s),
+            Err(e) => {
+                eprintln!("noiseman: cannot create framebuffer: {e}");
+                el.exit();
+                return;
+            }
+        }
+        self.window = Some(window);
     }
 
     fn draw(&mut self) -> Result<(), softbuffer::SoftBufferError> {
@@ -199,48 +264,42 @@ impl App {
     }
 }
 
-impl ApplicationHandler for App {
+impl ApplicationHandler<Event> for App {
     fn resumed(&mut self, el: &ActiveEventLoop) {
-        if self.window.is_some() {
-            return;
+        if self.window.is_none() {
+            self.show(el);
         }
-        let attrs = Window::default_attributes()
-            .with_title("noiseman")
-            .with_inner_size(LogicalSize::new(WIN_W, WIN_H))
-            .with_resizable(false);
-        #[cfg(all(unix, not(target_vendor = "apple")))]
-        let attrs = winit::platform::wayland::WindowAttributesExtWayland::with_name(attrs, "noiseman", "noiseman");
-        let window = match el.create_window(attrs) {
-            Ok(w) => Rc::new(w),
-            Err(e) => {
-                eprintln!("noiseman: cannot create window: {e}");
-                el.exit();
-                return;
-            }
-        };
-        let surface = softbuffer::Context::new(window.clone())
-            .and_then(|ctx| softbuffer::Surface::new(&ctx, window.clone()));
-        match surface {
-            Ok(s) => self.surface = Some(s),
-            Err(e) => {
-                eprintln!("noiseman: cannot create framebuffer: {e}");
-                el.exit();
-                return;
-            }
-        }
-        self.window = Some(window);
     }
 
-    fn user_event(&mut self, _: &ActiveEventLoop, (): ()) {
-        self.stream = None;
-        if !self.muted {
-            self.play();
+    fn user_event(&mut self, el: &ActiveEventLoop, event: Event) {
+        match event {
+            Event::AudioLost => {
+                self.stream = None;
+                if !self.muted {
+                    self.play();
+                }
+            }
+            Event::Toggle if self.window.is_some() => self.hide(),
+            Event::Toggle => self.show(el),
+            Event::Mute => self.toggle_mute(),
+            Event::Quit => el.exit(),
+            Event::TrayReady(t) => self.tray = Some(t),
+            Event::TrayGone => {
+                self.tray = None;
+                if self.window.is_none() {
+                    self.show(el);
+                }
+            }
         }
-        self.redraw_later();
+        self.refresh();
     }
 
     fn window_event(&mut self, el: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
         match event {
+            WindowEvent::CloseRequested if self.tray.is_some() => {
+                self.hide();
+                self.refresh();
+            }
             WindowEvent::CloseRequested => el.exit(),
             WindowEvent::RedrawRequested => {
                 if let Err(e) = self.draw() {
@@ -252,7 +311,7 @@ impl ApplicationHandler for App {
                 self.cursor = (position.x as i32 / s, position.y as i32 / s);
                 if self.dragging {
                     self.set_vol((self.cursor.0 - BAR.0) * 100 / BAR.2);
-                    self.redraw_later();
+                    self.refresh();
                 }
             }
             WindowEvent::MouseInput { state, button: MouseButton::Left, .. } => match state {
@@ -270,7 +329,7 @@ impl ApplicationHandler for App {
                     },
                     _ => return,
                 }
-                self.redraw_later();
+                self.refresh();
             }
             _ => {}
         }
@@ -290,7 +349,7 @@ impl ApplicationHandler for App {
 }
 
 fn main() {
-    let event_loop = match EventLoop::new() {
+    let event_loop = match EventLoop::with_user_event().build() {
         Ok(el) => el,
         Err(e) => {
             eprintln!("noiseman: cannot start event loop: {e}");
@@ -299,6 +358,7 @@ fn main() {
     };
     let mut app = App {
         proxy: event_loop.create_proxy(),
+        tray: None,
         window: None,
         surface: None,
         stream: None,
@@ -313,6 +373,7 @@ fn main() {
         GAIN.store(gain(app.vol).to_bits(), Relaxed);
         app.play();
     }
+    tray::spawn(app.proxy.clone(), (true, app.muted, Kind::from_u8(KIND.load(Relaxed))));
     if let Err(e) = event_loop.run_app(&mut app) {
         eprintln!("noiseman: event loop failed: {e}");
         std::process::exit(1);
