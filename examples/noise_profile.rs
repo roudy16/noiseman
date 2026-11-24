@@ -1,8 +1,8 @@
+#[path = "../src/backend/noise.rs"]
+mod noise;
 #[path = "../src/protocol.rs"]
 #[allow(dead_code)]
 mod protocol;
-#[path = "../src/backend/noise.rs"]
-mod noise;
 
 use std::hint::black_box;
 use std::process::ExitCode;

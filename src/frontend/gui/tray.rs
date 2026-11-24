@@ -57,8 +57,12 @@ impl ksni::Tray for Item {
             }
             .into(),
             MenuItem::Separator,
-            StandardItem { label: "Quit".into(), activate: Box::new(|t: &mut Self| t.send(Event::Quit)), ..Default::default() }
-                .into(),
+            StandardItem {
+                label: "Quit".into(),
+                activate: Box::new(|t: &mut Self| t.send(Event::Quit)),
+                ..Default::default()
+            }
+            .into(),
         ]
     }
 

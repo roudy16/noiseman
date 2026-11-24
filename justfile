@@ -22,6 +22,21 @@ test:
 run *args:
     cargo run --quiet -- "$@"
 
+# format the code
+fmt:
+    cargo fmt
+
+# clippy with warnings as errors, default build and with the gui feature
+lint:
+    cargo clippy --all-targets -- -D warnings
+    cargo clippy --all-targets --features gui -- -D warnings
+
+# format check, lint and tests (run before committing)
+check:
+    cargo fmt --check
+    just lint
+    just test
+
 # install binary to ~/.local/bin, hicolor icons and desktop entry for the current user
 install:
     cargo build --release

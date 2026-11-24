@@ -4,7 +4,7 @@ Noise generator split into a headless player daemon (backend) and frontends that
 
 ## Verbs
 
-`just setup | build | test | run | install | clean`. Lint both feature sets: `cargo clippy --all-targets -- -D warnings` and the same with `--features gui`.
+`just setup | build | test | run | install | clean`, plus `just fmt`, `just lint` (clippy, `-D warnings`, default and `--features gui`) and `just check` (fmt check, lint, tests): run `just check` before committing. Formatting: `rustfmt.toml` (120 columns, `use_small_heuristics = "Max"`).
 
 ## Layout
 

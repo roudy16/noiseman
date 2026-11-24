@@ -187,7 +187,11 @@ impl Palette {
         let var = |name| std::env::var(name).unwrap_or_default();
         let (colorterm, term) = (var("COLORTERM"), var("TERM"));
         let truecolor = colorterm.contains("truecolor") || colorterm.contains("24bit");
-        let depth = if truecolor { u16::MAX } else if term.contains("256") { 256 } else { 8 };
+        let depth = match (truecolor, term.contains("256")) {
+            (true, _) => u16::MAX,
+            (false, true) => 256,
+            (false, false) => 8,
+        };
         let mono = depth < 256 || Colored::ansi_color_disabled();
         if mono {
             style::force_color_output(false);
@@ -224,7 +228,11 @@ impl Palette {
 
 /// Nearest xterm-256 color: the 6x6x6 cube or the gray ramp, whichever is closer.
 fn cube(r: u8, g: u8, b: u8) -> Color {
-    let level = |v: u8| if v < 48 { 0 } else if v < 115 { 1 } else { (v - 35) / 40 };
+    let level = |v: u8| match v {
+        0..48 => 0,
+        48..115 => 1,
+        _ => (v - 35) / 40,
+    };
     let value = |l: u8| if l == 0 { 0 } else { 55 + 40 * l as i32 };
     let dist = |x: [i32; 3]| x.iter().zip([r, g, b]).map(|(a, b)| (a - b as i32).pow(2)).sum::<i32>();
     let (lr, lg, lb) = (level(r), level(g), level(b));
@@ -237,7 +245,8 @@ fn cube(r: u8, g: u8, b: u8) -> Color {
     }
 }
 const LOGO: [&str; 2] = ["  ▃ ▆▁ ▄ ▇  ▂ ", " ▅█▇██▃█▆██▄█ "];
-const KEYS: [(&str, &str); 5] = [("1-5 ↑↓", "noise"), ("←→", "volume"), ("m", "mute"), ("q", "leave (keeps playing)"), ("s", "stop")];
+const KEYS: [(&str, &str); 5] =
+    [("1-5 ↑↓", "noise"), ("←→", "volume"), ("m", "mute"), ("q", "leave (keeps playing)"), ("s", "stop")];
 const KEYS_SHORT: [(&str, &str); 5] = [("1-5", "noise"), ("←→", "vol"), ("m", "mute"), ("q", "leave"), ("s", "stop")];
 
 fn hint_width(keys: &[(&str, &str)], sep: usize) -> u16 {
@@ -269,7 +278,8 @@ fn draw(out: &mut Stdout, p: &Palette, state: Option<&State>, problem: Option<&s
         }
         queue!(out, MoveTo(left, top + bh - 1), Print(format!("╰{rule}╯")))?;
         queue!(out, SetForegroundColor(logo), SetBackgroundColor(t.tile), MoveTo(x, y), Print(LOGO[0]))?;
-        queue!(out, MoveTo(x, y + 1), Print(LOGO[1]), ResetColor, SetForegroundColor(t.accent), SetAttribute(Attribute::Bold))?;
+        queue!(out, MoveTo(x, y + 1), Print(LOGO[1]), ResetColor)?;
+        queue!(out, SetForegroundColor(t.accent), SetAttribute(Attribute::Bold))?;
         queue!(out, MoveTo(x + 17, y), Print("noiseman"), SetAttribute(Attribute::Reset), ResetColor)?;
         queue!(out, SetAttribute(Attribute::Dim), MoveTo(x + 17, y + 1), Print("noise generator"))?;
     } else {
@@ -280,7 +290,8 @@ fn draw(out: &mut Stdout, p: &Palette, state: Option<&State>, problem: Option<&s
         if s.muted {
             queue!(out, MoveTo(x + w.saturating_sub(7), y), SetAttribute(Attribute::Dim), Print("◌ Muted"))?;
         } else {
-            queue!(out, MoveTo(x + w.saturating_sub(9), y), SetForegroundColor(p.green()), Print("● "), ResetColor, Print("Playing"))?;
+            queue!(out, MoveTo(x + w.saturating_sub(9), y), SetForegroundColor(p.green()), Print("● "))?;
+            queue!(out, ResetColor, Print("Playing"))?;
         }
         queue!(out, SetAttribute(Attribute::Reset), MoveTo(x, y + 3))?;
         let labels: u16 = Kind::ALL.iter().map(|k| k.label().len() as u16).sum();
@@ -297,7 +308,8 @@ fn draw(out: &mut Stdout, p: &Palette, state: Option<&State>, problem: Option<&s
             }
             if selected {
                 let mark = if p.mono { Attribute::Underlined } else { Attribute::Bold };
-                queue!(out, SetForegroundColor(t.accent), SetAttribute(Attribute::Bold), SetAttribute(mark), Print(k.label()))?;
+                queue!(out, SetForegroundColor(t.accent), SetAttribute(Attribute::Bold), SetAttribute(mark))?;
+                queue!(out, Print(k.label()))?;
                 queue!(out, SetAttribute(Attribute::Reset), ResetColor)?;
             } else {
                 queue!(out, Print(k.label()))?;
@@ -308,7 +320,8 @@ fn draw(out: &mut Stdout, p: &Palette, state: Option<&State>, problem: Option<&s
         let fill = if s.muted { t.track } else { t.accent };
         let (on, off) = if p.mono { ("━", "─") } else { ("▬", "▬") };
         queue!(out, MoveTo(x, y + 5), SetForegroundColor(fill), Print(on.repeat(filled)), SetForegroundColor(t.track))?;
-        queue!(out, SetAttribute(Attribute::Dim), Print(off.repeat(bar as usize - filled)), SetAttribute(Attribute::Reset))?;
+        let rest = off.repeat(bar as usize - filled);
+        queue!(out, SetAttribute(Attribute::Dim), Print(rest), SetAttribute(Attribute::Reset))?;
         queue!(out, ResetColor, Print(format!("{:>5}", format!("{}%", s.vol))))?;
     }
     if let Some(e) = error {

@@ -6,8 +6,8 @@ mod player;
 
 use std::fs::{self, File, TryLockError};
 use std::io::{self, BufRead, BufReader, Write};
-use std::os::unix::fs::PermissionsExt;
 use std::net::Shutdown;
+use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::sync::Arc;
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};

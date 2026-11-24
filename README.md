@@ -29,6 +29,9 @@ All dev workflows go through `just` (run `just` alone to list recipes):
 - `just setup` — fetch dependencies (cargo fetch)
 - `just build` — compile
 - `just test` — run tests (cargo test)
+- `just fmt` — format the code (rustfmt)
+- `just lint` — clippy with warnings as errors, with and without the `gui` feature
+- `just check` — format check, lint and tests
 - `just run [args...]` — run the binary
 - `just install` — install to `~/.local/bin`, plus hicolor icons (`~/.local/share/icons/hicolor/*/apps/noiseman.*`) and desktop entry (`~/.local/share/applications/noiseman.desktop`, opens in a terminal)
 - `just clean` — remove build artifacts

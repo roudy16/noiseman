@@ -332,7 +332,10 @@ impl ApplicationHandler<Event> for App {
                 }
                 ElementState::Released => {}
             },
-            WindowEvent::KeyboardInput { event: KeyEvent { logical_key, state: ElementState::Pressed, repeat, .. }, .. } => {
+            WindowEvent::KeyboardInput {
+                event: KeyEvent { logical_key, state: ElementState::Pressed, repeat, .. },
+                ..
+            } => {
                 match logical_key.as_ref() {
                     Key::Named(NamedKey::ArrowLeft) => self.send(Command::VolBy(-5)),
                     Key::Named(NamedKey::ArrowRight) => self.send(Command::VolBy(5)),
@@ -389,8 +392,17 @@ pub fn run() -> ExitCode {
         // After a quit from this window the event loop is already gone, and nobody needs telling.
         let _ = replies.send_event(Event::PlayerGone(gone));
     });
-    let mut app =
-        App { proxy, sender, tray: None, view: None, state: first, problem: None, cursor: (0, 0), dragging: false, failed: false };
+    let mut app = App {
+        proxy,
+        sender,
+        tray: None,
+        view: None,
+        state: first,
+        problem: None,
+        cursor: (0, 0),
+        dragging: false,
+        failed: false,
+    };
     // The window is created later, in `resumed`.
     tray::spawn(app.proxy.clone(), TrayState { shown: true, ..app.tray_state() });
     if let Err(e) = event_loop.run_app(&mut app) {
