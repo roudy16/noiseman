@@ -6,7 +6,7 @@ use ksni::menu::{CheckmarkItem, StandardItem};
 use ksni::{MenuItem, OfflineReason, ToolTip};
 use winit::event_loop::EventLoopProxy;
 
-use crate::{Event, TrayState, send_or_log};
+use super::{Event, TrayState, send_or_log};
 
 pub struct Item {
     proxy: EventLoopProxy<Event>,

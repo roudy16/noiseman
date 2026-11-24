@@ -9,7 +9,8 @@ use cpal::{
     StreamConfig, SupportedBufferSize,
 };
 
-use crate::noise::{Kind, Noise};
+use super::noise::Noise;
+use crate::protocol::Kind;
 
 static GAIN: AtomicU32 = AtomicU32::new(0);
 static KIND: AtomicU8 = AtomicU8::new(Kind::Brown as u8);

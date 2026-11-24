@@ -5,12 +5,18 @@ edition = "2024"
 
 [dependencies]
 cpal = { version = "0.18", features = ["pulseaudio"] }
-winit = { version = "0.30", default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen", "wayland-csd-adwaita"] }
-softbuffer = { version = "0.4", default-features = false, features = ["x11", "x11-dlopen", "wayland", "wayland-dlopen"] }
-font8x8 = { version = "0.3", default-features = false }
+winit = { version = "0.30", optional = true, default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen", "wayland-csd-adwaita"] }
+softbuffer = { version = "0.4", optional = true, default-features = false, features = ["x11", "x11-dlopen", "wayland", "wayland-dlopen"] }
+font8x8 = { version = "0.3", optional = true, default-features = false }
+crossterm = { version = "0.29", default-features = false, features = ["events", "windows"] }
+libc = "0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-ksni = { version = "0.3.7", default-features = false, features = ["blocking", "tokio"] }
+ksni = { version = "0.3.7", optional = true, default-features = false, features = ["blocking", "tokio"] }
+
+[features]
+# Window and tray frontend; the default build is CLI + TUI only.
+gui = ["dep:winit", "dep:softbuffer", "dep:font8x8", "dep:ksni"]
 
 [profile.release]
 opt-level = "s"

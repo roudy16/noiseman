@@ -1,5 +1,11 @@
 # noiseman: design v1
 
+> **Revision (2026-11-24): headless player daemon with CLI, TUI and optional GUI frontends.** This supersedes the single-process structure below and in the 2026-11-23 note:
+> - **Backend** (`src/backend/`): `noiseman daemon` owns the audio stream and the mute/volume state (`Player`) and serves a line protocol (`src/protocol.rs`) on `$XDG_RUNTIME_DIR/noiseman.sock` (0600). One instance per user, enforced by a lock file. A per-connection reader thread forwards requests to the player thread over an mpsc channel, which waits with `recv_timeout` only while a mute fade is pending: 0 wakeups when muted.
+> - **Frontends** (`src/frontend/`): CLI subcommands, a crossterm TUI (default with no arguments) and the winit/softbuffer/tray window behind the `gui` cargo feature. All are clients of the protocol; none touches audio. Frontends that change playback start the daemon if needed (`setsid`, log in `$XDG_RUNTIME_DIR/noiseman.log`). The daemon outlives them; `stop` (or `s` in the TUI, Quit in the GUI) ends it.
+> - **Why:** measured playing on Linux, the old single process used 8.6 MB RSS, 5.0 MB PSS, 4.8 MB private. The daemon uses 4.0 MB RSS and 1.2 MB private, with a 0.79 MB binary (was 3.85 MB); the TUI while open adds 3.2 MB RSS, 0.2 MB private.
+> - **Cost:** Unix only (Linux, macOS) because of the Unix socket; Windows would need a named-pipe transport.
+
 > **Revision (2026-11-23): GUI and audio backend changed after measurement.** This supersedes the wxDragon parts of §2, §3, §5 and §7:
 > - **GUI:** wxDragon is replaced by a bare winit 0.30 window, drawn on the CPU with softbuffer 0.4, with text from the font8x8 bitmap font. Controls are drawn by hand; the event loop redraws only when an event arrives. No GPU, no toolkit, no C++ build.
 > - **Why:** measured on Linux and playing, wxDragon used 53 MB RSS and 17.8 MB private, of which GTK3 and wxWidgets are about 45 MB. The bare window uses 8.2 MB RSS and 4.5 MB private, with a 2.5 MB binary.

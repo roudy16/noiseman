@@ -1,12 +1,15 @@
-#[path = "../src/noise.rs"]
+#[path = "../src/protocol.rs"]
 #[allow(dead_code)]
+mod protocol;
+#[path = "../src/backend/noise.rs"]
 mod noise;
 
 use std::hint::black_box;
 use std::process::ExitCode;
 use std::time::Instant;
 
-use noise::{Kind, Noise};
+use noise::Noise;
+use protocol::Kind;
 
 const SR: u32 = 48_000;
 const BUFFER_FRAMES: usize = 4096;
@@ -36,7 +39,7 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     let kinds: Vec<Kind> = match args.get(1).map_or("all", String::as_str) {
         "all" => Kind::ALL.to_vec(),
-        name => match Kind::ALL.into_iter().find(|k| k.label().eq_ignore_ascii_case(name)) {
+        name => match Kind::parse(name) {
             Some(k) => vec![k],
             None => {
                 eprintln!("noise_profile: unknown kind {name:?}; expected white|pink|brown|blue|violet|all");

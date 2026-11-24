@@ -1,32 +1,42 @@
 # noiseman
 
-Desktop noise generator: a bare winit window with hand-drawn controls (softbuffer CPU framebuffer, font8x8 bitmap text) and cpal audio. Spec: `DESIGN.md` (see its revision note).
+Noise generator split into a headless player daemon (backend) and frontends that control it over a Unix socket: CLI, crossterm TUI, and an optional winit/softbuffer window with tray (`--features gui`). Spec: `DESIGN.md` (see its revision notes).
 
 ## Verbs
 
-`just setup | build | test | run | install | clean`. Lint: `cargo clippy --all-targets -- -D warnings`.
+`just setup | build | test | run | install | clean`. Lint both feature sets: `cargo clippy --all-targets -- -D warnings` and the same with `--features gui`.
 
 ## Layout
 
-- `src/main.rs`: window, event loop, hit-testing, drawing (`Canvas`), mute timer via `ControlFlow::WaitUntil`, `Event` user events (device loss, tray actions) via `EventLoopProxy`, hide/show to tray, non-Linux `tray` stub
-- `src/tray.rs` (Linux only): ksni StatusNotifierItem `Item` (icon `noiseman`, tooltip, menu) and `spawn()`: a worker thread does the D-Bus handshake, sends `Event::TrayReady(Tray)`, then applies `Tray::sync` states
-- `src/audio.rs`: `GAIN`/`KIND` atomics (private; `kind()`, `set_kind()`, `set_gain()`), `AudioError`, `start()` returning `Output` (`buffer_time()`), `build::<T>()`, `Voice::step`, data and error callbacks
-- `src/noise.rs`: `Kind`, `Noise` generators, the one level/bounds test
+- `src/main.rs`: `daemon` runs `backend::serve`; everything else goes to `frontend::run`
+- `src/protocol.rs`: the only contract between the halves: `Kind`, `Command`, `State`, their line encoding, socket path, round-trip test
+- `src/backend/` (no frontend imports)
+  - `mod.rs`: `serve()`: lock file, socket, accept thread, one reader thread per client, the player loop (`mpsc` + `recv_timeout`), watcher broadcast, fade-out on quit
+  - `player.rs`: `Player`: volume, mute, stream lifetime (drop after fade), audio-lost restart, `State`
+  - `audio.rs`: `GAIN`/`KIND` atomics (private; `kind()`, `set_kind()`, `set_gain()`), `AudioError`, `start()` returning `Output` (`buffer_time()`), `build::<T>()`, `Voice::step`, data and error callbacks
+  - `noise.rs`: `Noise` generators, the one level/bounds test
+- `src/frontend/` (no backend imports)
+  - `mod.rs`: argument dispatch (none/`tui`, `gui`, `help`, else CLI)
+  - `client.rs`: `Client { sender, receiver }`, `connect(autostart)`, daemon autostart (`setsid`, log to runtime dir)
+  - `cli.rs`: subcommands and `USAGE`
+  - `tui.rs`: crossterm screen; one thread reads keys, one reads pushed states, the main thread draws
+  - `gui/mod.rs`, `gui/tray.rs` (`gui` feature): the window and ksni tray as a protocol client
 
 ## Invariants
 
+- Frontends reach the backend only through `protocol` over the socket, never by import; the backend never imports `frontend`.
 - Audio data callback: no allocation, locks, logging or syscalls. It reads `KIND`/`GAIN` once per buffer (`Relaxed`).
-- UI → audio only through `GAIN` (f32 bits) and `KIND`. Mute is target gain 0, then the stream is dropped after the fade.
-- Event loop uses `ControlFlow::Wait` (or `WaitUntil` only while a mute fade is pending); redraw only on events. Muted or idle means no stream and 0 wakeups.
-- Error callback (not RT) logs, and on `DeviceNotAvailable | StreamInvalidated` wakes the loop with `EventLoopProxy::send_event`, which restarts the stream.
+- Player thread: blocks in `recv` (or `recv_timeout` only while a mute fade is pending). Muted means no stream and 0 wakeups; the daemon then has 2 threads plus one per connected client.
+- Client writes use a 200 ms timeout so a stalled client cannot stall the player; a watcher whose write fails is dropped.
+- One daemon per user: `noiseman.lock` (`File::try_lock`) is held for the daemon's life, so a socket file found while holding it is stale and removed.
+- Error callback (not RT) logs, and on `DeviceNotAvailable | StreamInvalidated` sends `AudioLost` to the player thread, which restarts the stream.
+- Default state: brown, volume 50, playing. Quit mutes and waits for the fade before exiting.
 - cpal uses the `pulseaudio` backend; it reports I32 as the default format, so keep the `SampleFormat::I32` arm.
-- Default noise is brown (`KIND` initial value).
 - Every noise type is normalised to about -18 dBFS RMS; the test enforces ±1.5 dB.
-- Release profile uses `panic = "abort"`; never let a panic reach the callback.
-- Tray (Linux): closing the window hides to tray by dropping the window and surface (winit cannot hide on Wayland); audio keeps playing. With no tray (spawn error or watcher offline) closing quits, and a hidden window is restored, so the app never runs with neither.
-- Tray callbacks run on ksni's thread and only `send_event` an `Event`; all state stays on the main thread, which pushes changes back with `Tray::sync` (no-op unless shown/muted/kind changed). zbus calls have no timeout, so the main thread never calls ksni; it only sends on a channel. Until `TrayReady` arrives, closing quits.
-- ksni uses `blocking` + `tokio` (current-thread runtime): two extra idle threads (ksni service, tray worker), 0 wakeups. The `async-io` backend was measured worse (4 extra threads; `blocking` 1.7's pool thread wakes every 500 ms forever).
-- Dependencies: cpal, winit, softbuffer, font8x8, ksni (Linux). No GPU, no toolkit.
+- Release profile uses `panic = "abort"`; never let a panic reach the callback. The TUI restores the terminal from a panic hook.
+- GUI (Linux tray): closing the window hides to tray (drops window and surface); with no tray, closing quits and stops the player. Tray callbacks only `send_event`; zbus calls stay off the winit thread. ksni uses `blocking` + `tokio`.
+- Dependencies: cpal, crossterm, libc; with `gui`: winit, softbuffer, font8x8, ksni (Linux). No GPU, no toolkit.
+- Unix only (the socket); Windows would need another transport.
 - Vendored crates, wired in via `[patch.crates-io]`; re-apply or drop each change when upgrading:
   - `vendor/pulseaudio`: pulseaudio 0.3.2 (pruned to `src/`, `Cargo.toml`, `LICENSE.md`) with two changes in `client/reactor.rs`: `Reactor::recv` reads in 64 KiB chunks instead of zero-filling 1 MiB per read, and `handle_command` removes a stream on `PlaybackStreamKilled` (upstream ignored it, so a server-killed stream was never reported and dropping it hung).
   - `vendor/cpal`: cpal 0.18.2 (pruned to `src/`, `build.rs`, `Cargo.toml`, `LICENSE`) with one change in `host/pulseaudio/stream.rs`: the playback latency thread no longer wakes per write or every 100 ms, only on play/pause/drop, so `OutputCallbackInfo` timestamps go stale (noiseman ignores them).
