@@ -23,3 +23,8 @@ strip = true
 inherits = "release"
 debug = true
 strip = false
+
+# pulseaudio 0.3.2 zero-fills a 1 MiB read buffer per socket read; vendored with a 64 KiB chunk.
+# Drop this once upstream (colinmarc/pulseaudio-rs) fixes Reactor::recv.
+[patch.crates-io]
+pulseaudio = { path = "vendor/pulseaudio" }
