@@ -27,7 +27,7 @@ enum Msg {
 }
 
 /// Runs the daemon until a `quit` request. Errors only if it cannot start.
-pub fn serve() -> Result<(), String> {
+pub fn serve(muted: bool) -> Result<(), String> {
     let lock_path = protocol::runtime_dir()?.join("noiseman.lock");
     let lock = File::create(&lock_path).map_err(|e| format!("cannot create {}: {e}", lock_path.display()))?;
     // A daemon that just quit holds the lock through its fade-out, after removing its socket.
@@ -59,7 +59,7 @@ pub fn serve() -> Result<(), String> {
             eprintln!("noiseman: audio lost after the player stopped");
         }
     };
-    let mut player = Player::new(Arc::new(on_lost));
+    let mut player = Player::new(Arc::new(on_lost), muted);
     let mut watchers: Vec<Arc<UnixStream>> = Vec::new();
     let mut last = player.state();
 

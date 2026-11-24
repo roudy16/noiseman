@@ -4,7 +4,7 @@ Noise generator: a dependency-free sound core (`crates/core`), a headless player
 
 ## Verbs
 
-`just setup | build | test | run | install | clean`, plus `just fmt`, `just lint` (clippy, `-D warnings`, default and `--features gui`) and `just check` (fmt check, lint, tests, all workspace crates; lint also runs clippy for the wasm target): run `just check` before committing. `just web` builds the demo into `target/web`; `just web-serve` serves it on :8000. Formatting: `rustfmt.toml` (120 columns, `use_small_heuristics = "Max"`).
+`just setup | build | test | run | install | clean`, plus `just fmt`, `just lint` (clippy, `-D warnings`, default and `--features gui`) and `just check` (fmt check, lint, tests, all workspace crates, then `just gates`; lint also runs clippy for the wasm target): run `just check` before committing. `just gates` (`tools/gates.py`, ~2 s after the release builds) checks artifact sizes, DSP ns/sample, and the daemon's memory, threads, CPU and wakeups playing and muted, plus TUI and CLI memory, against `gates.toml`; it runs a private daemon (`daemon --muted`, then `vol 0` + `unmute`: a real stream, silent) and skips the runtime gates without a PulseAudio server. A change that needs a higher limit raises it in `gates.toml` in the same commit, with the reason. `just web` builds the demo into `target/web`; `just web-serve` serves it on :8000. Formatting: `rustfmt.toml` (120 columns, `use_small_heuristics = "Max"`).
 
 ## Layout
 
@@ -15,7 +15,7 @@ Cargo workspace: the root package `noiseman` (the binary), `crates/core` and `we
   - `noise.rs`: `Noise` generators, the one level/bounds test
   - `voice.rs`: `Voice::new(rate, seed, kind)` and `step(kind, gain)`: 10 ms gain fade, kind change via silence; its test
   - `examples/noise_profile.rs`: DSP benchmark for `just profile`
-- `src/main.rs`: `daemon` runs `backend::serve`; everything else goes to `frontend::run`
+- `src/main.rs`: `daemon [--muted]` runs `backend::serve`; everything else goes to `frontend::run`
 - `src/protocol.rs`: the only contract between the halves: `Kind` (re-exported from core), `Command`, `State`, their line encoding, socket path, round-trip test
 - `src/backend/` (no frontend imports)
   - `mod.rs`: `serve()`: lock file, socket, accept thread, one reader thread per client, the player loop (`mpsc` + `recv_timeout`), watcher broadcast, fade-out on quit

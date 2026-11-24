@@ -15,11 +15,11 @@ pub struct Player {
 }
 
 impl Player {
-    /// Starts playing at once. `on_lost` runs on the audio thread when the device or stream goes away;
+    /// Starts playing at once unless `muted`. `on_lost` runs on the audio thread when the device or stream goes away;
     /// it must get [`Player::audio_lost`] called on the player's thread.
-    pub fn new(on_lost: Arc<dyn Fn() + Send + Sync>) -> Player {
+    pub fn new(on_lost: Arc<dyn Fn() + Send + Sync>, muted: bool) -> Player {
         let mut p = Player { on_lost, stream: None, drop_stream_at: None, vol: 50, muted: true, error: None };
-        p.set_muted(false);
+        p.set_muted(muted);
         p
     }
 

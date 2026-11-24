@@ -13,7 +13,8 @@ WebAssembly for a browser demo (`web/`). See `DESIGN.md`.
   `NO_COLOR` or on terminals with fewer than 256 colors.
 - `noiseman play [KIND]`, `stop`, `mute`, `unmute`, `toggle`,
   `kind KIND`, `vol N|+N|-N`, `status`.
-- `noiseman daemon`: run the player in the foreground. Commands that should
+- `noiseman daemon [--muted]`: run the player in the foreground (`--muted`
+  starts it silent, e.g. at login). Commands that should
   make sound start it automatically, detached from the terminal, logging to
   `$XDG_RUNTIME_DIR/noiseman.log`.
 - `noiseman gui` (built with `--features gui`): the window. On Linux with a
@@ -32,7 +33,8 @@ All dev workflows go through `just` (run `just` alone to list recipes):
 - `just test` — run tests (all workspace crates)
 - `just fmt` — format the code (rustfmt)
 - `just lint` — clippy with warnings as errors: with and without the `gui` feature, and for the wasm target
-- `just check` — format check, lint and tests
+- `just check` — format check, lint, tests and quality gates
+- `just gates` — size, CPU and memory limits from `gates.toml` (about 2 s; needs PulseAudio for the runtime part)
 - `just web` / `just web-serve` — build / serve the browser demo
 - `just run [args...]` — run the binary
 - `just install` — install to `~/.local/bin` (with `nsm` as a short alias), plus hicolor icons (`~/.local/share/icons/hicolor/*/apps/noiseman.*`) and desktop entry (`~/.local/share/applications/noiseman.desktop`, opens in a terminal)

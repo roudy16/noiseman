@@ -14,7 +14,7 @@ usage: noiseman [COMMAND]
   vol N | +N | -N      volume 0-100, absolute or relative
   status               show the current state
   gui                  window and tray controls (needs a build with --features gui)
-  daemon               run the player in the foreground";
+  daemon [--muted]     run the player in the foreground (--muted: start silent)";
 
 pub fn run(args: &[String]) -> ExitCode {
     match exec(args) {

@@ -33,11 +33,18 @@ lint:
     cargo clippy --workspace --all-targets --features noiseman/gui -- -D warnings
     cargo clippy -p noiseman-web --target wasm32-unknown-unknown -- -D warnings
 
-# format check, lint and tests (run before committing)
+# format check, lint, tests and quality gates (run before committing)
 check:
     cargo fmt --all --check
     just lint
     just test
+    just gates
+
+# quality gates: artifact sizes, DSP speed, daemon/TUI/CLI memory and CPU; limits and baselines in gates.toml
+gates: web
+    cargo build -q --release
+    cargo build -q --release -p noiseman-core --example noise_profile
+    python3 tools/gates.py
 
 # install binary (plus an `nsm` alias) to ~/.local/bin, hicolor icons and desktop entry for the current user
 install:
@@ -51,7 +58,7 @@ install:
 
 # build the web demo (static files) into target/web
 web:
-    cargo build --release -p noiseman-web --target wasm32-unknown-unknown
+    cargo build -q --release -p noiseman-web --target wasm32-unknown-unknown
     mkdir -p target/web
     cp web/site/* target/web/
     cp target/wasm32-unknown-unknown/release/noiseman_web.wasm target/web/noiseman.wasm

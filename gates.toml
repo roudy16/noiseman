@@ -1,0 +1,26 @@
+# Limits for `just gates` (tools/gates.py). Baselines measured 2026-11-24 on Linux x86_64 (PipeWire 1.6 pulse
+# server), release build. Sizes and memory have ~10-30% headroom; thread and wakeup counts are design invariants
+# (see AGENTS.md). Raise a limit only on purpose, in the commit that needs it, and say why.
+
+[size]
+noiseman_bytes = 900_000       # baseline 811,680 (default features, no gui)
+wasm_bytes = 8_192             # baseline 6,182
+web_total_bytes = 20_480       # baseline 17,599 (target/web: page, css, js, wasm, favicon)
+
+[dsp]
+# Worst kind (pink/blue ~3.0-3.2 ns here). Machine dependent: about 2x headroom, for a slower box or a busy one.
+max_ns_per_sample = 6.0
+
+[runtime]
+# Playing: a real PulseAudio stream at zero gain, with the gate's one client connected.
+playing_private_kb = 1_536     # baseline 1,156-1,228
+playing_rss_kb = 5_120         # baseline 3,840-4,020
+playing_threads = 6            # main, accept, 1 client reader, 3 audio
+playing_cpu_percent = 0.5      # baseline 0.05-0.08
+playing_wakeups_per_s = 40     # baseline 20-25 (context switches, all threads)
+tui_private_kb = 384           # baseline 224-232, with the daemon running (shares the binary's pages)
+cli_max_rss_kb = 4_096         # baseline 3,020-3,132 peak for `noiseman status`
+# Muted, no clients: the stream is dropped and the daemon sleeps.
+muted_private_kb = 1_536       # baseline 1,172-1,184
+muted_threads = 2              # main, accept
+muted_wakeups_per_s = 0
