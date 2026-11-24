@@ -28,3 +28,5 @@ strip = false
 # Drop this once upstream (colinmarc/pulseaudio-rs) fixes Reactor::recv.
 [patch.crates-io]
 pulseaudio = { path = "vendor/pulseaudio" }
+# cpal 0.18.2 with the PulseAudio playback latency thread polling only on play/pause/drop.
+cpal = { path = "vendor/cpal" }

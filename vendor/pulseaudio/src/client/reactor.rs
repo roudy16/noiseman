@@ -441,6 +441,12 @@ impl Reactor {
                     log::error!("unknown stream: {channel}");
                 }
             }
+            // noiseman patch: upstream ignored this, so a server-killed stream never ended
+            // play_all and dropping it hung waiting for a delete ack that never came.
+            protocol::Command::PlaybackStreamKilled(channel) => {
+                log::debug!("playback stream killed by server: {channel}");
+                state.playback_streams.remove(&channel);
+            }
             _ => log::debug!("ignoring unexpected command: {cmd:?}"),
         }
     }
