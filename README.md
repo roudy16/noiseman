@@ -33,7 +33,7 @@ All dev workflows go through `just` (run `just` alone to list recipes):
 - `just lint` — clippy with warnings as errors, with and without the `gui` feature
 - `just check` — format check, lint and tests
 - `just run [args...]` — run the binary
-- `just install` — install to `~/.local/bin`, plus hicolor icons (`~/.local/share/icons/hicolor/*/apps/noiseman.*`) and desktop entry (`~/.local/share/applications/noiseman.desktop`, opens in a terminal)
+- `just install` — install to `~/.local/bin` (with `nsm` as a short alias), plus hicolor icons (`~/.local/share/icons/hicolor/*/apps/noiseman.*`) and desktop entry (`~/.local/share/applications/noiseman.desktop`, opens in a terminal)
 - `just clean` — remove build artifacts
 
 For the window: `cargo build --release --features gui`.
