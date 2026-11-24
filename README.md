@@ -44,7 +44,9 @@ For the window: `cargo build --release --features gui`.
 
 Web demo: `just web` builds a static site into `target/web` (needs the `wasm32-unknown-unknown` target, which
 `just setup` adds); `just web-serve` serves it at http://localhost:8000. Any static
-host works; the page is about 16 KB including the ~6 KB WebAssembly module.
+host works; the page is about 18 KB including the ~6 KB WebAssembly module. `.github/workflows/pages.yml` publishes it to
+GitHub Pages on every push to `main` that touches it (one-time setup: Settings → Pages → Source: GitHub
+Actions; free for public repositories).
 
 ## TODO
 
