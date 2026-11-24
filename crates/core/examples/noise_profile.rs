@@ -1,15 +1,8 @@
-#[path = "../src/backend/noise.rs"]
-mod noise;
-#[path = "../src/protocol.rs"]
-#[allow(dead_code)]
-mod protocol;
-
 use std::hint::black_box;
 use std::process::ExitCode;
 use std::time::Instant;
 
-use noise::Noise;
-use protocol::Kind;
+use noiseman_core::{Kind, Noise};
 
 const SR: u32 = 48_000;
 const BUFFER_FRAMES: usize = 4096;

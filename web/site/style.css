@@ -1,0 +1,68 @@
+:root {
+  color-scheme: light dark;
+  --accent: #d08f4a;
+  --track: color-mix(in srgb, var(--accent) 35%, #8a8a8a);
+  --ink: var(--accent);
+  --tile: color-mix(in srgb, var(--accent) 22%, #000);
+  --bg: #1d1d1d;
+  --fg: #dcdcdc;
+  --dim: #8b8b8b;
+  --green: #4cae5a;
+  --red: #d94f45;
+  font: 16px/1.5 ui-monospace, "JetBrains Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: light) {
+  /* Accents are tuned for dark backgrounds; text in them is darkened to keep 4.5:1 on light. */
+  :root {
+    --bg: #fafafa; --fg: #222; --dim: #666;
+    --ink: color-mix(in srgb, var(--accent) 65%, #000);
+    --tile: color-mix(in srgb, var(--accent) 16%, var(--bg));
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh; display: grid; grid-template-columns: minmax(0, 34rem); place-content: center;
+  gap: 1.25rem; padding: 1.5rem;
+  background: var(--bg); color: var(--fg); transition: --accent .3s;
+}
+.card { border: 1px solid var(--track); border-radius: .75rem; padding: 1.75rem 2rem; display: grid; gap: 1.5rem; }
+header { display: flex; align-items: center; gap: 1.25rem; }
+.logo { display: flex; align-items: flex-end; gap: 2px; height: 2.6rem; padding: .3rem .5rem 0; background: var(--tile); border-radius: .2rem; }
+.logo i { width: .5rem; height: calc(var(--h) * 6.25%); background: var(--accent); transition: background .3s; }
+body:not(.playing) .logo i { background: var(--track); }
+.title { flex: 1; }
+h1 { margin: 0; font-size: 1rem; color: var(--ink); }
+.title p, .keys, .about, label { margin: 0; color: var(--dim); }
+.status { margin: 0; align-self: flex-start; color: var(--dim); white-space: nowrap; }
+.playing .status { color: var(--fg); }
+.playing .status::first-letter { color: var(--green); }
+.kinds { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; }
+.kinds button {
+  font: inherit; color: var(--fg); background: none; border: 1px solid transparent; border-radius: .4rem;
+  padding: .25rem .5rem; cursor: pointer;
+}
+.kinds button span { color: var(--dim); margin-right: .4rem; }
+.kinds button[aria-checked="true"] { color: var(--ink); font-weight: bold; border-color: var(--ink); }
+.kinds button[aria-checked="true"] span { color: var(--ink); }
+.volume { display: grid; grid-template-columns: auto 1fr 3.5rem; align-items: center; gap: 1rem; }
+output { text-align: right; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.play {
+  font: inherit; font-weight: bold; padding: .6rem; border-radius: .5rem; cursor: pointer;
+  border: 1px solid var(--accent); background: var(--accent); color: #1d1d1d;
+}
+.playing .play { background: none; color: var(--ink); border-color: var(--ink); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.error { margin: 0; color: var(--red); }
+.keys { text-align: center; }
+kbd { color: var(--ink); font: inherit; font-weight: bold; }
+.keys span { white-space: nowrap; margin: 0 .4rem; }
+.about { font-size: .8rem; text-align: center; }
+@media (max-width: 30rem) {
+  body { padding: 1rem; }
+  .card { padding: 1.25rem; }
+  header { flex-wrap: wrap; gap: .75rem; }
+  .logo i { width: .35rem; }
+  .kinds { justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

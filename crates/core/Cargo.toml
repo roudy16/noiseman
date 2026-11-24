@@ -1,0 +1,7 @@
+[package]
+name = "noiseman-core"
+version = "0.1.0"
+edition = "2024"
+description = "noiseman's sound: noise generators, kind switching and the volume curve. No dependencies, no I/O."
+
+[dependencies]

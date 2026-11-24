@@ -1,26 +1,35 @@
 # noiseman
 
-Noise generator split into a headless player daemon (backend) and frontends that control it over a Unix socket: CLI, crossterm TUI, and an optional winit/softbuffer window with tray (`--features gui`). Spec: `DESIGN.md` (see its revision notes).
+Noise generator: a dependency-free sound core (`crates/core`), a headless player daemon (backend) and frontends that control it over a Unix socket: CLI, crossterm TUI, and an optional winit/softbuffer window with tray (`--features gui`). The core also runs in the browser (`web/`). Spec: `DESIGN.md` (see its revision notes).
 
 ## Verbs
 
-`just setup | build | test | run | install | clean`, plus `just fmt`, `just lint` (clippy, `-D warnings`, default and `--features gui`) and `just check` (fmt check, lint, tests): run `just check` before committing. Formatting: `rustfmt.toml` (120 columns, `use_small_heuristics = "Max"`).
+`just setup | build | test | run | install | clean`, plus `just fmt`, `just lint` (clippy, `-D warnings`, default and `--features gui`) and `just check` (fmt check, lint, tests, all workspace crates; lint also runs clippy for the wasm target): run `just check` before committing. `just web` builds the demo into `target/web`; `just web-serve` serves it on :8000. Formatting: `rustfmt.toml` (120 columns, `use_small_heuristics = "Max"`).
 
 ## Layout
 
+Cargo workspace: the root package `noiseman` (the binary), `crates/core` and `web`.
+
+- `crates/core/` (`noiseman-core`; no dependencies, no I/O, no allocation)
+  - `lib.rs`: `Kind` (labels, `from_u8`, `parse`), `gain(vol)` (square law)
+  - `noise.rs`: `Noise` generators, the one level/bounds test
+  - `voice.rs`: `Voice::new(rate, seed, kind)` and `step(kind, gain)`: 10 ms gain fade, kind change via silence; its test
+  - `examples/noise_profile.rs`: DSP benchmark for `just profile`
 - `src/main.rs`: `daemon` runs `backend::serve`; everything else goes to `frontend::run`
-- `src/protocol.rs`: the only contract between the halves: `Kind`, `Command`, `State`, their line encoding, socket path, round-trip test
+- `src/protocol.rs`: the only contract between the halves: `Kind` (re-exported from core), `Command`, `State`, their line encoding, socket path, round-trip test
 - `src/backend/` (no frontend imports)
   - `mod.rs`: `serve()`: lock file, socket, accept thread, one reader thread per client, the player loop (`mpsc` + `recv_timeout`), watcher broadcast, fade-out on quit
   - `player.rs`: `Player`: volume, mute, stream lifetime (drop after fade), audio-lost restart, `State`
-  - `audio.rs`: `GAIN`/`KIND` atomics (private; `kind()`, `set_kind()`, `set_gain()`), `AudioError`, `start()` returning `Output` (`buffer_time()`), `build::<T>()`, `Voice::step`, data and error callbacks
-  - `noise.rs`: `Noise` generators, the one level/bounds test
+  - `audio.rs`: `GAIN`/`KIND` atomics (private; `kind()`, `set_kind()`, `set_gain()`), `AudioError`, `start()` returning `Output` (`buffer_time()`), `build::<T>()`, data and error callbacks (a core `Voice` per stream)
 - `src/frontend/` (no backend imports)
   - `mod.rs`: argument dispatch (none/`tui`, `gui`, `help`, else CLI)
   - `client.rs`: `Client { sender, receiver }`, `connect(autostart)`, daemon autostart (`setsid`, log to runtime dir)
   - `cli.rs`: subcommands and `USAGE`
   - `tui.rs`: crossterm screen; one thread reads keys, one reads pushed states, the main thread draws
   - `gui/mod.rs`, `gui/tray.rs` (`gui` feature): the window and ksni tray as a protocol client
+- `web/` (`noiseman-web`, cdylib for `wasm32-unknown-unknown`)
+  - `src/lib.rs`: `synth_init(rate, seed, kind)`, `synth_render(kind, vol, frames) -> *const f32` over one static synth; no wasm-bindgen, no heap
+  - `site/`: `index.html`, `style.css`, `app.js` (controls, keys, localStorage, AudioContext lifecycle), `worklet.js` (AudioWorkletProcessor calling the wasm)
 
 ## Invariants
 
@@ -32,10 +41,12 @@ Noise generator split into a headless player daemon (backend) and frontends that
 - Error callback (not RT) logs, and on `DeviceNotAvailable | StreamInvalidated` sends `AudioLost` to the player thread, which restarts the stream.
 - Default state: brown, volume 50, playing. Quit mutes and waits for the fade before exiting.
 - cpal uses the `pulseaudio` backend; it reports I32 as the default format, so keep the `SampleFormat::I32` arm.
+- `crates/core` stays dependency-free and I/O-free; both the daemon and the web demo get their sound only from it, so they sound the same.
+- Web: the worklet does no allocation per block (cached `Float32Array` view); the page suspends the AudioContext after a pause; the wasm has no heap. Keep the module small (check its size after `just web`).
 - Every noise type is normalised to about -18 dBFS RMS; the test enforces ±1.5 dB.
 - Release profile uses `panic = "abort"`; never let a panic reach the callback. The TUI restores the terminal from a panic hook.
 - GUI (Linux tray): closing the window hides to tray (drops window and surface); with no tray, closing quits and stops the player. Tray callbacks only `send_event`; zbus calls stay off the winit thread. ksni uses `blocking` + `tokio`.
-- Dependencies: cpal, crossterm, libc; with `gui`: winit, softbuffer, font8x8, ksni (Linux). No GPU, no toolkit.
+- Dependencies: noiseman-core, cpal, crossterm, libc; with `gui`: winit, softbuffer, font8x8, ksni (Linux). No GPU, no toolkit.
 - Unix only (the socket); Windows would need another transport.
 - Vendored crates, wired in via `[patch.crates-io]`; re-apply or drop each change when upgrading:
   - `vendor/pulseaudio`: pulseaudio 0.3.2 (pruned to `src/`, `Cargo.toml`, `LICENSE.md`) with two changes in `client/reactor.rs`: `Reactor::recv` reads in 64 KiB chunks instead of zero-filling 1 MiB per read, and `handle_command` removes a stream on `PlaybackStreamKilled` (upstream ignored it, so a server-killed stream was never reported and dropping it hung).

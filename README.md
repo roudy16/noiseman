@@ -3,7 +3,8 @@
 A noise generator (white, pink, brown, blue, violet). A small background
 player owns the audio (cpal); a CLI and a terminal UI control it over a Unix
 socket. An optional window with a system-tray icon is available with the `gui`
-feature. See `DESIGN.md`.
+feature. The sound itself lives in a dependency-free core crate (`crates/core`) that also compiles to
+WebAssembly for a browser demo (`web/`). See `DESIGN.md`.
 
 ## Usage
 
@@ -26,17 +27,22 @@ fallback). Audio uses PulseAudio/pipewire-pulse when available.
 
 All dev workflows go through `just` (run `just` alone to list recipes):
 
-- `just setup` — fetch dependencies (cargo fetch)
+- `just setup` — fetch dependencies and add the `wasm32-unknown-unknown` target
 - `just build` — compile
-- `just test` — run tests (cargo test)
+- `just test` — run tests (all workspace crates)
 - `just fmt` — format the code (rustfmt)
-- `just lint` — clippy with warnings as errors, with and without the `gui` feature
+- `just lint` — clippy with warnings as errors: with and without the `gui` feature, and for the wasm target
 - `just check` — format check, lint and tests
+- `just web` / `just web-serve` — build / serve the browser demo
 - `just run [args...]` — run the binary
 - `just install` — install to `~/.local/bin` (with `nsm` as a short alias), plus hicolor icons (`~/.local/share/icons/hicolor/*/apps/noiseman.*`) and desktop entry (`~/.local/share/applications/noiseman.desktop`, opens in a terminal)
 - `just clean` — remove build artifacts
 
 For the window: `cargo build --release --features gui`.
+
+Web demo: `just web` builds a static site into `target/web` (needs the `wasm32-unknown-unknown` target, which
+`just setup` adds); `just web-serve` serves it at http://localhost:8000. Any static
+host works; the page is about 16 KB including the ~6 KB WebAssembly module.
 
 ## TODO
 
@@ -50,6 +56,6 @@ For the window: `cargo build --release --features gui`.
   occasional thunder (a noise bed plus sparse droplet transients; thunder as
   rare low-passed rumbles). Each sets its own readable TUI theme, as the
   noise kinds do (e.g. slate-teal for rain, deep indigo with a pale flash
-  accent for thunder). Adds `Kind` variants, so it touches the protocol, the
-  backend generators (and their level test), the TUI's `1`-`5` keys and the
-  GUI.
+  accent for thunder). Adds `Kind` variants, so it touches the core's
+  generators (and their level test), the protocol, the TUI's `1`-`5` keys,
+  the GUI and the web demo's kinds and accents.

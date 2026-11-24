@@ -1,9 +1,13 @@
+[workspace]
+members = ["crates/core", "web"]
+
 [package]
 name = "noiseman"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+noiseman-core = { path = "crates/core" }
 cpal = { version = "0.18", features = ["pulseaudio"] }
 winit = { version = "0.30", optional = true, default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen", "wayland-csd-adwaita"] }
 softbuffer = { version = "0.4", optional = true, default-features = false, features = ["x11", "x11-dlopen", "wayland", "wayland-dlopen"] }

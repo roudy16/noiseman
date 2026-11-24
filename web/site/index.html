@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>noiseman</title>
+<meta name="description" content="White, pink, brown, blue and violet noise, generated in your browser.">
+<link rel="icon" href="favicon.svg">
+<link rel="stylesheet" href="style.css">
+<link rel="preload" href="noiseman.wasm" as="fetch" type="application/wasm" crossorigin>
+<script src="app.js" defer></script>
+</head>
+<body>
+<main class="card">
+  <header>
+    <div class="logo" aria-hidden="true"><i style="--h:5"></i><i style="--h:8"></i><i style="--h:11"></i><i style="--h:8"></i><i style="--h:14"></i><i style="--h:9"></i><i style="--h:3"></i><i style="--h:12"></i><i style="--h:6"></i><i style="--h:15"></i><i style="--h:8"></i><i style="--h:10"></i><i style="--h:4"></i></div>
+    <div class="title"><h1>noiseman</h1><p>noise generator</p></div>
+    <p class="status" id="status" aria-live="polite">◌ Paused</p>
+  </header>
+  <div class="kinds" id="kinds" role="radiogroup" aria-label="Noise"></div>
+  <div class="volume">
+    <label for="vol">Volume</label>
+    <input type="range" id="vol" min="0" max="100" step="5">
+    <output id="volout" for="vol"></output>
+  </div>
+  <button class="play" id="play" type="button">Play</button>
+  <p class="error" id="error" role="alert" hidden></p>
+</main>
+<p class="keys"><span><kbd>1-5</kbd> noise</span> <span><kbd>↑↓</kbd> cycle</span> <span><kbd>←→</kbd> volume</span> <span><kbd>space</kbd> play / pause</span></p>
+<p class="about">Rust compiled to a ~6 KB WebAssembly module, running in an AudioWorklet. Nothing is downloaded or
+streamed: the noise is computed on your device, and the audio engine is suspended while paused.</p>
+</body>
+</html>

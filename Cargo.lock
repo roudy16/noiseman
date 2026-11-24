@@ -981,8 +981,20 @@ dependencies = [
  "font8x8",
  "ksni",
  "libc",
+ "noiseman-core",
  "softbuffer",
  "winit",
+]
+
+[[package]]
+name = "noiseman-core"
+version = "0.1.0"
+
+[[package]]
+name = "noiseman-web"
+version = "0.1.0"
+dependencies = [
+ "noiseman-core",
 ]
 
 [[package]]

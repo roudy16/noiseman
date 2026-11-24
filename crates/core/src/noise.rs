@@ -1,4 +1,4 @@
-use crate::protocol::Kind;
+use crate::Kind;
 
 const WHITE_GAIN: f32 = 0.218;
 const PINK_GAIN: f32 = 0.0715;

@@ -9,6 +9,7 @@ default:
 # fetch dependencies
 setup:
     cargo fetch
+    rustup target add wasm32-unknown-unknown
 
 # compile
 build:
@@ -16,7 +17,7 @@ build:
 
 # run tests
 test:
-    cargo test
+    cargo test --workspace
 
 # run the binary, passing args through
 run *args:
@@ -24,16 +25,17 @@ run *args:
 
 # format the code
 fmt:
-    cargo fmt
+    cargo fmt --all
 
 # clippy with warnings as errors, default build and with the gui feature
 lint:
-    cargo clippy --all-targets -- -D warnings
-    cargo clippy --all-targets --features gui -- -D warnings
+    cargo clippy --workspace --all-targets -- -D warnings
+    cargo clippy --workspace --all-targets --features noiseman/gui -- -D warnings
+    cargo clippy -p noiseman-web --target wasm32-unknown-unknown -- -D warnings
 
 # format check, lint and tests (run before committing)
 check:
-    cargo fmt --check
+    cargo fmt --all --check
     just lint
     just test
 
@@ -47,6 +49,18 @@ install:
     sed "s|/home/roudy|$HOME|g" assets/noiseman.desktop > ~/.local/share/applications/noiseman.desktop
     -update-desktop-database ~/.local/share/applications
 
+# build the web demo (static files) into target/web
+web:
+    cargo build --release -p noiseman-web --target wasm32-unknown-unknown
+    mkdir -p target/web
+    cp web/site/* target/web/
+    cp target/wasm32-unknown-unknown/release/noiseman_web.wasm target/web/noiseman.wasm
+    cp assets/noiseman.svg target/web/favicon.svg
+
+# serve the web demo on http://localhost:8000
+web-serve: web
+    python3 -m http.server -d target/web 8000
+
 # remove build artifacts
 clean:
     cargo clean
@@ -54,7 +68,7 @@ clean:
 # profile the noise DSP (white|pink|brown|blue|violet|all) over secs of 48 kHz audio into profiles/dsp-<kind>.*
 profile kind="all" secs="5000":
     mkdir -p profiles
-    cargo build --profile profiling --example noise_profile
+    cargo build --profile profiling -p noiseman-core --example noise_profile
     perf record -e cycles:u -F 2999 --call-graph dwarf -o profiles/dsp-{{kind}}.perf.data -- target/profiling/examples/noise_profile {{kind}} {{secs}}
     samply import --save-only -o profiles/dsp-{{kind}}.json.gz profiles/dsp-{{kind}}.perf.data
     perf script -i profiles/dsp-{{kind}}.perf.data | inferno-collapse-perf | inferno-flamegraph > profiles/dsp-{{kind}}.svg

@@ -9,37 +9,7 @@ use std::io;
 use std::os::unix::fs::{DirBuilderExt, MetadataExt};
 use std::path::PathBuf;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-#[repr(u8)]
-pub enum Kind {
-    White,
-    Pink,
-    Brown,
-    Blue,
-    Violet,
-}
-
-impl Kind {
-    pub const ALL: [Kind; 5] = [Kind::White, Kind::Pink, Kind::Brown, Kind::Blue, Kind::Violet];
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Kind::White => "White",
-            Kind::Pink => "Pink",
-            Kind::Brown => "Brown",
-            Kind::Blue => "Blue",
-            Kind::Violet => "Violet",
-        }
-    }
-
-    pub fn from_u8(v: u8) -> Kind {
-        Self::ALL.get(v as usize).copied().unwrap_or(Kind::White)
-    }
-
-    pub fn parse(s: &str) -> Option<Kind> {
-        Self::ALL.into_iter().find(|k| k.label().eq_ignore_ascii_case(s))
-    }
-}
+pub use noiseman_core::Kind;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Command {

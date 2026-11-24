@@ -1,0 +1,12 @@
+[package]
+name = "noiseman-web"
+version = "0.1.0"
+edition = "2024"
+description = "noiseman-core as a dependency-free WebAssembly module for an AudioWorklet."
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+noiseman-core = { path = "../crates/core" }

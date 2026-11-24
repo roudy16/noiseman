@@ -9,14 +9,13 @@ use cpal::{
     StreamConfig, SupportedBufferSize,
 };
 
-use super::noise::Noise;
 use crate::protocol::Kind;
+use noiseman_core::Voice;
 
 static GAIN: AtomicU32 = AtomicU32::new(0);
 static KIND: AtomicU8 = AtomicU8::new(Kind::Brown as u8);
 
 const BUFFER_FRAMES: u32 = 4096;
-const FADE_SECS: f32 = 0.01;
 
 pub fn kind() -> Kind {
     Kind::from_u8(KIND.load(Relaxed))
@@ -89,29 +88,6 @@ pub fn start(on_lost: impl Fn() + Send + 'static) -> Result<Output, AudioError> 
     Ok(Output { stream, rate: config.sample_rate })
 }
 
-struct Voice {
-    noise: Noise,
-    playing: Kind,
-    level: f32,
-    smoothing: f32,
-}
-
-impl Voice {
-    #[inline]
-    fn step(&mut self, want: Kind, gain: f32) -> f32 {
-        // A kind change fades to silence before switching generators, so it does not click.
-        let target = if want == self.playing { gain } else { 0.0 };
-        self.level += (target - self.level) * self.smoothing;
-        if (target - self.level).abs() < 1e-6 {
-            self.level = target;
-        }
-        if want != self.playing && self.level < 1e-4 {
-            self.playing = want;
-        }
-        self.noise.next(self.playing) * self.level
-    }
-}
-
 fn build<T: SizedSample + FromSample<f32>>(
     device: &Device,
     config: StreamConfig,
@@ -120,12 +96,7 @@ fn build<T: SizedSample + FromSample<f32>>(
     let channels = config.channels as usize;
     let sr = config.sample_rate;
     let seed = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_nanos() as u64);
-    let mut v = Voice {
-        noise: Noise::new(sr, seed),
-        playing: kind(),
-        level: 0.0,
-        smoothing: 1.0 - (-1.0 / (FADE_SECS * sr as f32)).exp(),
-    };
+    let mut v = Voice::new(sr, seed, kind());
     let data = move |data: &mut [T], _: &OutputCallbackInfo| {
         let want = kind();
         let gain = f32::from_bits(GAIN.load(Relaxed));

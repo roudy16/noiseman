@@ -1,7 +1,6 @@
 //! The player daemon: owns the audio stream and serves the protocol on a Unix socket. Knows nothing of frontends.
 
 mod audio;
-mod noise;
 mod player;
 
 use std::fs::{self, File, TryLockError};

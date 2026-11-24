@@ -14,11 +14,6 @@ pub struct Player {
     error: Option<String>,
 }
 
-fn gain(vol: i32) -> f32 {
-    let x = vol as f32 / 100.0;
-    x * x
-}
-
 impl Player {
     /// Starts playing at once. `on_lost` runs on the audio thread when the device or stream goes away;
     /// it must get [`Player::audio_lost`] called on the player's thread.
@@ -80,7 +75,7 @@ impl Player {
     }
 
     fn apply_gain(&self) {
-        audio::set_gain(if self.muted { 0.0 } else { gain(self.vol) });
+        audio::set_gain(if self.muted { 0.0 } else { noiseman_core::gain(self.vol) });
     }
 
     fn set_vol(&mut self, v: i32) {
