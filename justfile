@@ -34,3 +34,11 @@ install:
 # remove build artifacts
 clean:
     cargo clean
+
+# profile the noise DSP (white|pink|brown|blue|violet|all) over secs of 48 kHz audio into profiles/dsp-<kind>.*
+profile kind="all" secs="5000":
+    mkdir -p profiles
+    cargo build --profile profiling --example noise_profile
+    perf record -e cycles:u -F 2999 --call-graph dwarf -o profiles/dsp-{{kind}}.perf.data -- target/profiling/examples/noise_profile {{kind}} {{secs}}
+    samply import --save-only -o profiles/dsp-{{kind}}.json.gz profiles/dsp-{{kind}}.perf.data
+    perf script -i profiles/dsp-{{kind}}.perf.data | inferno-collapse-perf | inferno-flamegraph > profiles/dsp-{{kind}}.svg
