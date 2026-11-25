@@ -163,8 +163,8 @@ fn action(key: KeyEvent, kind: Option<Kind>) -> Action {
         KeyCode::Left | KeyCode::Char('-' | 'h') => Action::Send(Command::VolBy(-5)),
         KeyCode::Right | KeyCode::Char('+' | '=' | 'l') => Action::Send(Command::VolBy(5)),
         KeyCode::Char(c @ '1'..='5') => Action::Send(Command::Kind(Kind::ALL[c as usize - '1' as usize])),
-        KeyCode::Up | KeyCode::BackTab | KeyCode::Char('k') => cycle(Kind::ALL.len() - 1),
-        KeyCode::Down | KeyCode::Tab | KeyCode::Char('j') => cycle(1),
+        KeyCode::Down | KeyCode::BackTab | KeyCode::Char('j') => cycle(Kind::ALL.len() - 1),
+        KeyCode::Up | KeyCode::Tab | KeyCode::Char('k') => cycle(1),
         _ => Action::None,
     }
 }
@@ -247,12 +247,19 @@ fn cube(r: u8, g: u8, b: u8) -> Color {
     }
 }
 const LOGO: [&str; 2] = ["  ▃ ▆▁ ▄ ▇  ▂ ", " ▅█▇██▃█▆██▄█ "];
-const KEYS: [(&str, &str); 5] =
-    [("1-5 ↑↓ jk", "noise"), ("←→ hl", "volume"), ("m", "mute"), ("q esc", "leave (keeps playing)"), ("s", "stop")];
-const KEYS_SHORT: [(&str, &str); 5] = [("1-5", "noise"), ("←→", "vol"), ("m", "mute"), ("q", "leave"), ("s", "stop")];
+const KEYS: [(&[&str], &str); 5] = [
+    (&["1-5", "↓↑", "jk"], "noise"),
+    (&["←→", "hl"], "volume"),
+    (&["m"], "mute"),
+    (&["q", "esc"], "leave (keeps playing)"),
+    (&["s"], "stop"),
+];
+const KEYS_SHORT: [(&[&str], &str); 5] =
+    [(&["1-5"], "noise"), (&["←→"], "vol"), (&["m"], "mute"), (&["q"], "leave"), (&["s"], "stop")];
 
-fn hint_width(keys: &[(&str, &str)], sep: usize) -> u16 {
-    let text: usize = keys.iter().map(|(k, d)| k.chars().count() + 1 + d.len()).sum();
+fn hint_width(keys: &[(&[&str], &str)], sep: usize) -> u16 {
+    let text: usize =
+        keys.iter().map(|(opts, d)| opts.iter().map(|k| k.chars().count()).sum::<usize>() + opts.len() + d.len()).sum();
     (text + sep * (keys.len() - 1)) as u16
 }
 
@@ -330,13 +337,32 @@ fn draw(out: &mut Stdout, p: &Palette, state: Option<&State>, problem: Option<&s
         let e: String = format!("✕ {e}").chars().take(w as usize).collect();
         queue!(out, MoveTo(x, y + 7), SetForegroundColor(p.red()), Print(e), ResetColor)?;
     }
-    let (keys, sep) = if hint_width(&KEYS, 3) <= cols { (&KEYS, 3) } else { (&KEYS_SHORT, 1) };
-    queue!(out, MoveTo(cols.saturating_sub(hint_width(keys, sep)) / 2, top + bh + 1))?;
-    for (i, (key, desc)) in keys.iter().enumerate() {
-        let lead = if i > 0 { &"   "[..sep] } else { "" };
-        queue!(out, Print(lead), SetForegroundColor(t.accent), SetAttribute(Attribute::Bold), Print(key))?;
-        queue!(out, SetAttribute(Attribute::Reset), ResetColor, SetAttribute(Attribute::Dim), Print(" "), Print(desc))?;
-        queue!(out, SetAttribute(Attribute::Reset))?;
+    let (keys, sep) = if hint_width(&KEYS, 3) <= cols { (&KEYS, " · ") } else { (&KEYS_SHORT, " ") };
+    queue!(out, MoveTo(cols.saturating_sub(hint_width(keys, sep.chars().count())) / 2, top + bh + 1))?;
+    for (i, (opts, desc)) in keys.iter().enumerate() {
+        if i > 0 {
+            queue!(
+                out,
+                SetForegroundColor(t.track),
+                SetAttribute(Attribute::Dim),
+                Print(sep),
+                SetAttribute(Attribute::Reset)
+            )?;
+        }
+        for (j, key) in opts.iter().enumerate() {
+            if j > 0 {
+                queue!(
+                    out,
+                    SetForegroundColor(t.track),
+                    SetAttribute(Attribute::Dim),
+                    Print("/"),
+                    SetAttribute(Attribute::Reset)
+                )?;
+            }
+            queue!(out, SetForegroundColor(t.accent), SetAttribute(Attribute::Bold), Print(key))?;
+            queue!(out, SetAttribute(Attribute::Reset))?;
+        }
+        queue!(out, ResetColor, SetAttribute(Attribute::Dim), Print(" "), Print(desc), SetAttribute(Attribute::Reset))?;
     }
     queue!(out, EndSynchronizedUpdate)?;
     out.flush()
