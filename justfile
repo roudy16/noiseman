@@ -15,9 +15,9 @@ setup:
 build:
     cargo build
 
-# run tests
+# run tests (all workspace crates, with the gui feature so its tests run too)
 test:
-    cargo test --workspace
+    cargo test --workspace --features noiseman/gui
 
 # run the binary, passing args through
 run *args:

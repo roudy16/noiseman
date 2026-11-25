@@ -167,24 +167,32 @@ mod tests {
 
     #[test]
     fn round_trip() {
-        for cmd in [
-            Command::Kind(Kind::Pink),
-            Command::Vol(40),
-            Command::VolBy(-5),
-            Command::VolBy(5),
-            Command::Mute(true),
-            Command::Mute(false),
-            Command::ToggleMute,
-            Command::Status,
-            Command::Watch,
-            Command::Protocol,
-            Command::Quit,
+        for (cmd, text) in [
+            (Command::Kind(Kind::Pink), "kind pink"),
+            (Command::Vol(40), "vol 40"),
+            (Command::VolBy(-5), "vol -5"),
+            (Command::VolBy(5), "vol +5"),
+            (Command::Mute(true), "mute"),
+            (Command::Mute(false), "unmute"),
+            (Command::ToggleMute, "toggle"),
+            (Command::Status, "status"),
+            (Command::Watch, "watch"),
+            (Command::Protocol, "protocol"),
+            (Command::Quit, "quit"),
         ] {
-            assert_eq!(Command::parse(&cmd.to_string()), Ok(cmd));
+            assert_eq!(cmd.to_string(), text);
+            assert_eq!(Command::parse(text), Ok(cmd));
         }
-        for error in [None, Some("no default output device".to_owned())] {
-            let s = State { kind: Kind::Violet, vol: 7, muted: true, error };
-            assert_eq!(State::parse(&s.to_string()), Ok(s));
+        let state = |kind, vol, muted, error: Option<&str>| State { kind, vol, muted, error: error.map(String::from) };
+        for (s, text) in [
+            (state(Kind::Brown, 50, false, None), "state brown 50 playing"),
+            (
+                state(Kind::Violet, 7, true, Some("no default output device")),
+                "state violet 7 muted no default output device",
+            ),
+        ] {
+            assert_eq!(s.to_string(), text);
+            assert_eq!(State::parse(text), Ok(s));
         }
         assert_eq!(State::parse("err nope"), Err("nope".into()));
         assert_eq!(parse_protocol(&protocol_reply()), PROTOCOL);

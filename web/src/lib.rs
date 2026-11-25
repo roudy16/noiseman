@@ -46,3 +46,17 @@ pub extern "C" fn synth_render(kind: u32, vol: u32, frames: u32) -> *const f32 {
     }
     s.buf.as_ptr()
 }
+
+#[cfg(test)]
+mod tests {
+    use noiseman_core::Kind;
+
+    /// app.js sends a kind as its index in KINDS, which `synth_init`/`synth_render` decode with `Kind::from_u8`.
+    #[test]
+    fn app_js_kinds_match_decode_order() {
+        let labels: Vec<String> =
+            (0..Kind::ALL.len() as u8).map(|i| format!("\"{}\"", Kind::from_u8(i).label())).collect();
+        let line = format!("const KINDS = [{}];", labels.join(", "));
+        assert!(include_str!("../site/app.js").contains(&line), "web/site/app.js lacks {line}");
+    }
+}

@@ -1,6 +1,6 @@
 # Checks pushes to main and pull requests: on Linux `just ci` (format, lint, tests, size gates; the timing and
 # runtime gates need a quiet machine and a PulseAudio server, so they stay local), on macOS and Windows clippy and the
-# tests of the root package and core, which hold the OS-specific code.
+# tests (with gui) of the root package and core, which hold the OS-specific code.
 name: CI
 
 on:
@@ -48,4 +48,4 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - run: cargo clippy -p noiseman -p noiseman-core --all-targets -- -D warnings
       - run: cargo clippy -p noiseman -p noiseman-core --all-targets --features noiseman/gui -- -D warnings
-      - run: cargo test -p noiseman -p noiseman-core
+      - run: cargo test -p noiseman -p noiseman-core --features noiseman/gui
