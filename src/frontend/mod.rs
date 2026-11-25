@@ -15,7 +15,12 @@ pub fn run(args: &[String]) -> ExitCode {
         Some("gui") if args.len() == 1 => gui::run(),
         #[cfg(not(feature = "gui"))]
         Some("gui") if args.len() == 1 => {
-            eprintln!("noiseman: this build has no window; rebuild with `--features gui`");
+            eprintln!(
+                "noiseman: this build has no window; the gui build has one. To get it:
+  - run the installer with NOISEMAN_GUI=1 (install.sh or install.ps1)
+  - or download noiseman-gui-<target> from https://github.com/roudy16/noiseman/releases
+  - or rebuild with `--features gui`"
+            );
             ExitCode::FAILURE
         }
         Some("version" | "-V" | "--version") => {

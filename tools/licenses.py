@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Print the license files of every third-party crate linked into noiseman (`--features gui`) for a target.
+"""Print the license files of every third-party crate linked into noiseman for a target: the default build, or with
+`gui` the one with `--features gui`.
 
 Release archives ship this as THIRD-PARTY-LICENSES.txt: MIT, BSD and Apache-2.0 all require their text to travel
 with binary copies. Only normal dependencies reachable from the binary are listed, minus proc macros. A crate that
@@ -33,11 +34,12 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 
 
 def main() -> int:
-    if len(sys.argv) != 2:
-        print("usage: tools/licenses.py TARGET", file=sys.stderr)
+    if len(sys.argv) < 2 or sys.argv[2:] not in ([], ["gui"]):
+        print("usage: tools/licenses.py TARGET [gui]", file=sys.stderr)
         return 2
+    features = ["--features", "gui"] if sys.argv[2:] else []
     meta = json.loads(subprocess.run(
-        ["cargo", "metadata", "--format-version", "1", "--locked", "--features", "gui", "--filter-platform", sys.argv[1]],
+        ["cargo", "metadata", "--format-version", "1", "--locked", *features, "--filter-platform", sys.argv[1]],
         cwd=ROOT, capture_output=True, text=True, check=True,
     ).stdout)
     packages = {p["id"]: p for p in meta["packages"]}

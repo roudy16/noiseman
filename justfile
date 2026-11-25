@@ -66,11 +66,17 @@ gates-windows:
 deps:
     python3 tools/deps.py
 
-# install noiseman and an `nsm` link to ~/.local/bin for the current user; on Linux also icons and a desktop entry
-install:
+# install the terminal build and an `nsm` link to ~/.local/bin for the user; on Linux also icons and a desktop entry
+install: (_install "")
+
+# like `just install`, but the build with the window (`--features gui`); its desktop entry opens the window
+install-gui: (_install "gui")
+
+_install variant:
     #!/usr/bin/env bash
     set -euo pipefail
-    cargo build --release --features gui
+    variant={{ variant }}
+    cargo build --release ${variant:+--features "$variant"}
     bin="$HOME/.local/bin"
     install -d "$bin"
     install -m755 target/release/noiseman "$bin/noiseman"
@@ -93,12 +99,15 @@ install:
         install -Dm644 assets/noiseman-$s.png "$share/icons/hicolor/${s}x${s}/apps/noiseman.png"
     done
     install -d "$share/applications"
-    sed "s|@BIN@|$bin/noiseman|g" assets/noiseman.desktop > "$share/applications/noiseman.desktop"
+    # As in tools/package.sh: the template opens the window; the terminal build's entry runs the TUI in a terminal.
+    tui='s/^Exec=@BIN@ gui$/Exec=@BIN@/; s/^Terminal=false$/Terminal=true/'
+    [[ -n $variant ]] && tui=
+    sed -e "$tui" -e "s|@BIN@|$bin/noiseman|g" assets/noiseman.desktop > "$share/applications/noiseman.desktop"
     update-desktop-database "$share/applications" 2>/dev/null || true
 
-# build a release archive (with gui, plus license texts) into target/dist; target defaults to this machine
-package target=`rustc -vV | sed -n 's/^host: //p'`:
-    tools/package.sh {{ target }}
+# build a release archive into target/dist: the terminal build, or with variant `gui` the window's; target: this machine
+package target=`rustc -vV | sed -n 's/^host: //p'` variant="":
+    tools/package.sh {{ target }} {{ variant }}
 
 # build the web demo (static files) into target/web
 web:

@@ -20,7 +20,7 @@ Commands (non-interactive; print state and exit):
 
 Interactive & daemon:
   (none) | tui         interactive terminal UI (requires a TTY)
-  gui                  desktop window (with a tray icon on Linux)
+  gui                  desktop window (gui build; tray on Linux)
   daemon [--muted]     run the player in the foreground (--muted: start silent)
   help | -h | --help   show this help
   version | -V         show the version (also --version)

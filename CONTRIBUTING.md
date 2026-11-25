@@ -18,8 +18,9 @@ cargo install --path . --features gui   # drop --features gui for a terminal-onl
 ```
 
 `cargo install` puts `noiseman` in `~/.cargo/bin`; make the short alias yourself (`ln -s noiseman ~/.cargo/bin/nsm`)
-or use `alias nsm=noiseman`. On Linux and macOS, `just install` instead builds with the window and installs to
-`~/.local/bin` with the `nsm` link (leaving an existing `nsm` alone), plus the icons and desktop entry on Linux.
+or use `alias nsm=noiseman`. On Linux and macOS, `just install` instead builds the terminal version and installs to
+`~/.local/bin` with the `nsm` link (leaving an existing `nsm` alone), plus the icons and desktop entry on Linux;
+`just install-gui` does the same with the window, and its desktop entry opens the window.
 
 ## Development
 
@@ -39,8 +40,9 @@ just deps                  # check advisories and outdated dependencies (network
 just web                   # build the static browser demo into target/web
 just web-serve             # serve the browser demo on http://localhost:8000
 just profile [kind] [secs] # profile the DSP into profiles/dsp-<kind>.*
-just install               # install the gui build and nsm link to ~/.local/bin (+ icons, desktop entry on Linux)
-just package [target]      # build a release archive (with gui, plus license texts) into target/dist
+just install               # install the terminal build and nsm link to ~/.local/bin (+ icons, desktop entry on Linux)
+just install-gui           # the same, built with the window (its desktop entry opens the window)
+just package [target] [gui] # build a release archive (gui: with the window) into target/dist
 just clean                 # remove build artifacts
 ```
 

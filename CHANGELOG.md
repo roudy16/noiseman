@@ -23,15 +23,18 @@ versions follow [Semantic Versioning](https://semver.org/).
 - The browser demo says Muted/Mute instead of Paused/Pause, and remembers the noise by name.
 - Easier-to-read key hints at the bottom of the terminal UI.
 - The README is now a short quick start, with a troubleshooting section; build instructions moved to CONTRIBUTING.md.
-- The Linux desktop entry opens the window instead of the terminal UI in a terminal; `just install` now builds with
-  the window too.
+- Release archives and the installers are now the terminal build (commands and terminal UI). The window ships as a
+  second build, the `noiseman-gui-<target>` archives, which the installers fetch with `NOISEMAN_GUI=1`. In the gui
+  build, the Linux desktop entry and the Windows Start menu shortcut open the window; in the terminal build, they open
+  the terminal UI in a terminal. If you use the window, reinstall with `NOISEMAN_GUI=1`.
+- `just install` builds the terminal version, as in 0.1.0; the new `just install-gui` builds the one with the window.
 - When its install directory is not on PATH, `install.sh` prints the line that adds it for zsh, bash or fish.
 - The macOS archives state macOS 11 as their minimum (the x86_64 one said 10.12).
 
 ### Fixed
 
-- `noiseman help` no longer says the window needs `--features gui` (release builds include it), and lists the noises
-  in the new order, as does the desktop entry.
+- `noiseman help` says the window needs the gui build instead of `--features gui`, and lists the noises in the new
+  order, as does the desktop entry.
 - `noiseman gui` in a build without the window says how to get one, instead of rejecting `gui` as an unknown command.
 - `noiseman` (or `noiseman tui`) run without a terminal, as from a launcher or a pipe, says it needs one and exits,
   instead of starting the player.

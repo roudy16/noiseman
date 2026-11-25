@@ -46,7 +46,8 @@ jobs:
           version=$(cargo pkgid -p noiseman | sed 's/.*[@#]//')
           [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME, Cargo.toml $version"; exit 1; }
           grep -q "^## \\[$version\\]" CHANGELOG.md || { echo "CHANGELOG.md has no section for $version"; exit 1; }
-      - run: tools/package.sh ${{ matrix.target }}
+      # Both variants in one job: they share the target's dependency builds.
+      - run: tools/package.sh ${{ matrix.target }} && tools/package.sh ${{ matrix.target }} gui
         shell: bash
       - uses: actions/upload-artifact@v7
         with:
@@ -89,14 +90,26 @@ jobs:
           irm https://github.com/roudy16/noiseman/releases/latest/download/install.ps1 | iex
           ```
 
+          The installers fetch the terminal build (command line and terminal UI). For the desktop window, the gui build:
+
+          ```sh
+          curl -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh | NOISEMAN_GUI=1 sh
+          ```
+
+          ```powershell
+          $env:NOISEMAN_GUI = '1'; irm https://github.com/roudy16/noiseman/releases/latest/download/install.ps1 | iex
+          ```
+
           **Which file?** Each archive has a `.sha256` checksum.
+          - `noiseman-<target>`: the terminal build (command line and terminal UI)
+          - `noiseman-gui-<target>`: the gui build, which adds the window (`noiseman gui`, with a tray icon on Linux)
           - Linux: `x86_64-unknown-linux-gnu` (Intel/AMD) or `aarch64-unknown-linux-gnu` (ARM)
           - macOS: `aarch64-apple-darwin` (Apple Silicon) or `x86_64-apple-darwin` (Intel)
           - Windows: `x86_64-pc-windows-msvc` (Intel/AMD) or `aarch64-pc-windows-msvc` (ARM)
 
           **Downloaded by hand, the binaries are not signed:**
           - macOS: run `xattr -d com.apple.quarantine noiseman`, or allow it in System Settings > Privacy & Security.
-          - Windows: in the SmartScreen prompt, choose More info > Run anyway.
+          - Windows: in the SmartScreen prompt, choose More info > Run anyway, or run `Unblock-File` on the .zip first.
           EOF
           cat notes.md
       # --generate-notes appends GitHub's notes (the Full Changelog link) after the file's.

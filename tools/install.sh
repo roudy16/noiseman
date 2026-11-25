@@ -1,6 +1,8 @@
 #!/bin/sh
 # Install the latest noiseman release for this machine, with an `nsm` link:
 #   curl -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh | sh
+# It installs the terminal build (CLI + TUI); NOISEMAN_GUI=1 installs the build with the desktop window instead:
+#   curl -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh | NOISEMAN_GUI=1 sh
 # NOISEMAN_INSTALL_DIR overrides the directory (default ~/.local/bin); NOISEMAN_VERSION (e.g. v0.1.0) picks a release.
 # On Linux it also installs icons and a desktop entry to ~/.local/share, as `just install` does.
 # Everything is inside main, called on the last line, so a download cut short runs nothing.
@@ -94,7 +96,13 @@ main() {
     else
         base=$repo/releases/latest/download
     fi
-    name=noiseman-$target
+    if [ "${NOISEMAN_GUI:-}" = 1 ]; then
+        name=noiseman-gui-$target
+        variant="gui build (CLI, TUI and desktop window)"
+    else
+        name=noiseman-$target
+        variant="terminal build (CLI and TUI; for the desktop window, install with NOISEMAN_GUI=1)"
+    fi
 
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT INT TERM
@@ -112,7 +120,7 @@ main() {
     cp "$tmp/$name/noiseman" "$dir/.noiseman.new"
     chmod 755 "$dir/.noiseman.new"
     mv -f "$dir/.noiseman.new" "$dir/noiseman"
-    echo "Installed $dir/noiseman"
+    echo "Installed $dir/noiseman, the $variant"
     link_nsm "$dir"
     if [ "$os" = Linux ]; then
         desktop_files "$tmp/$name/share" "$dir/noiseman"

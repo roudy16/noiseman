@@ -21,15 +21,22 @@ Windows 10 (1803 or later) and 11, in PowerShell:
 irm https://github.com/roudy16/noiseman/releases/latest/download/install.ps1 | iex
 ```
 
-Both install for your user only, with `nsm` as a short alias. Linux needs PulseAudio or PipeWire and glibc 2.35 or
-newer (Ubuntu 22.04, Debian 12, Fedora 36); macOS needs version 11 or newer. Archives for a manual download are on
-[Releases](https://github.com/roudy16/noiseman/releases); to build from source, see [CONTRIBUTING.md](CONTRIBUTING.md).
+Both install the terminal build (commands and terminal UI) for your user only, with `nsm` as a short alias. For the
+window too, install the gui build: pipe into `NOISEMAN_GUI=1 sh` instead of `sh`, or on Windows run
+`$env:NOISEMAN_GUI = '1'` first. Linux needs PulseAudio or PipeWire and glibc 2.35 or newer (Ubuntu 22.04, Debian 12,
+Fedora 36); macOS needs version 11 or newer. Archives for a manual download (`noiseman-<target>`, or
+`noiseman-gui-<target>` with the window) are on [Releases](https://github.com/roudy16/noiseman/releases); to build
+from source, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+The binaries are not signed. The installers are not affected, but a downloaded archive may be blocked: on macOS, run
+`xattr -d com.apple.quarantine noiseman`, or use System Settings > Privacy & Security > Open Anyway; on Windows, pick
+More info > Run anyway at the SmartScreen prompt, or run `Unblock-File` on the .zip before extracting it.
 
 ## Use
 
 ```sh
 noiseman              # terminal UI
-noiseman gui          # window (with a tray icon on Linux)
+noiseman gui          # window, in the gui build (with a tray icon on Linux)
 noiseman play brown   # play in the background: brown, white, blue, pink or violet
 noiseman vol +10      # louder (or vol 30, vol -10)
 noiseman toggle       # mute or unmute

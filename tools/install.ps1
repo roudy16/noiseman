@@ -1,8 +1,10 @@
 # Install the latest noiseman release for this Windows machine, for the current user (no admin), with an `nsm` link:
 #   irm https://github.com/roudy16/noiseman/releases/latest/download/install.ps1 | iex
+# It installs the terminal build (CLI + TUI); with $env:NOISEMAN_GUI = '1' set first, the build with the desktop window.
 # NOISEMAN_INSTALL_DIR overrides the directory (default %LOCALAPPDATA%\Programs\noiseman); NOISEMAN_VERSION (e.g.
-# v0.1.0) picks a release. It adds the directory to the user's PATH, a Start menu shortcut to the window, and an entry
-# in Settings > Apps whose Uninstall removes all of it. Windows counterpart of tools/install.sh.
+# v0.1.0) picks a release. It adds the directory to the user's PATH, a Start menu shortcut (to the window, or the
+# terminal UI in a console), and an entry in Settings > Apps whose Uninstall removes all of it. Windows counterpart of
+# tools/install.sh.
 # Everything is inside Install-Noiseman, called on the last line, so a download cut short runs nothing; it never calls
 # `exit`, which would close the shell that ran `iex`.
 
@@ -21,7 +23,8 @@ function Install-Noiseman {
         default { throw "no prebuilt binary for Windows on $arch; build from source ($repo)" }
     }
     $base = if ($env:NOISEMAN_VERSION) { "$repo/releases/download/$env:NOISEMAN_VERSION" } else { "$repo/releases/latest/download" }
-    $name = "noiseman-$target"
+    $gui = $env:NOISEMAN_GUI -eq '1'
+    $name = if ($gui) { "noiseman-gui-$target" } else { "noiseman-$target" }
 
     $tmp = Join-Path ([IO.Path]::GetTempPath()) ("noiseman-" + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory $tmp | Out-Null
@@ -42,13 +45,19 @@ function Install-Noiseman {
         # Leftovers of binaries that were running at the last install (see Move-Aside), and nothing else.
         Get-ChildItem -LiteralPath $dir -File | Where-Object { $_.Name -match $OldPattern } |
             Remove-Item -Force -ErrorAction SilentlyContinue
+        # Only the gui build has noiseman-gui.exe; one from an earlier gui install goes, or the shortcut would run it.
         foreach ($exe in 'noiseman.exe', 'noiseman-gui.exe') {
             $path = Join-Path $dir $exe
             if (Test-Path $path) { Move-Aside $path }
-            Copy-Item "$new\$exe" $path
+            if (Test-Path "$new\$exe") { Copy-Item "$new\$exe" $path }
         }
         Copy-Item "$new\LICENSE", "$new\THIRD-PARTY-LICENSES.txt" $dir
-        Write-Host "Installed $dir\noiseman.exe"
+        if ($gui) {
+            Write-Host "Installed $dir\noiseman.exe, the gui build (CLI, TUI and desktop window)"
+        } else {
+            Write-Host "Installed $dir\noiseman.exe, the terminal build (CLI and TUI; for the desktop window, set"
+            Write-Host "`$env:NOISEMAN_GUI = '1' and run the installer again)"
+        }
         Set-Nsm $dir
         $pathAdded = Add-UserPath $dir
         Add-Shortcut $dir
@@ -110,10 +119,12 @@ function Add-UserPath($dir) {
     $added
 }
 
+# The gui build's shortcut opens the window without a console; the terminal build's runs the TUI in a console.
 function Add-Shortcut($dir) {
     $lnk = Join-Path ([Environment]::GetFolderPath('Programs')) 'noiseman.lnk'
     $s = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
-    $s.TargetPath = Join-Path $dir 'noiseman-gui.exe'
+    $gui = Join-Path $dir 'noiseman-gui.exe'
+    $s.TargetPath = if (Test-Path $gui) { $gui } else { Join-Path $dir 'noiseman.exe' }
     $s.WorkingDirectory = $dir
     $s.Description = 'Noise player'
     $s.Save()
