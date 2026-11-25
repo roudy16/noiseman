@@ -13,7 +13,7 @@ Cargo workspace: the root package `noiseman` (the binary), `crates/core` and `we
 - `crates/core/` (`noiseman-core`; no dependencies, no I/O, no allocation)
   - `src/lib.rs`: `Kind` (labels, `from_u8`, `parse`), `gain(vol)` (square law)
   - `src/noise.rs`: `Noise` generators, the one level/bounds test
-  - `src/voice.rs`: `Voice::new(rate, seed, kind)` and `fill(out, kind, gain, write)` (one buffer; the generator is matched once per buffer, not per sample): `FADE_SECS` (100 ms) S-curve gain fade, kind change via silence; its tests, including `fill` against the per-sample `step` (test-only)
+  - `src/voice.rs`: `Voice::new(rate, seed, kind)` and `fill(out, kind, gain, write)` (one buffer; the generator is matched once per buffer, not per sample): `FADE_SECS` (20 ms) S-curve gain fade, kind change via silence; its tests, including `fill` against the per-sample `step` (test-only)
   - `examples/noise_profile.rs`: DSP benchmark (`Voice::fill` per 4096-frame buffer, as the daemon runs it) for `just profile` and the DSP gate
 - `src/main.rs`: `daemon [--muted]` runs `backend::serve`; everything else goes to `frontend::run` (run as `noiseman-gui` with no arguments: `gui`)
 - `build.rs`: on Windows, embeds `assets/noiseman.ico` and version info (`winresource`)

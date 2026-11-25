@@ -226,10 +226,10 @@ a { color: var(--accent); }
 
 <section>
   <h2>Playing, fading, muted</h2>
-  <p>Muting does not cut the stream at once. The target gain drops to zero and fades along an S-curve to exactly 0 in 100 ms; the player allows one device buffer for the audio callback to pick up the new gain, three for audio already queued in the device and 20 ms of slack before dropping the stream. Once muted with no clients connected, the daemon is completely idle: two threads (main and accept) and zero wakeups.</p>
+  <p>Muting does not cut the stream at once. The target gain drops to zero and fades along an S-curve to exactly 0 in 20 ms; the player allows one device buffer for the audio callback to pick up the new gain, three for audio already queued in the device and 20 ms of slack before dropping the stream. Once muted with no clients connected, the daemon is completely idle: two threads (main and accept) and zero wakeups.</p>
   <figure>
     <div class="plate">
-      <svg viewBox="0 0 780 240" role="img" aria-label="Three states: playing, fading out, muted. Mute moves playing to fading; after 120 ms plus four device buffers fading becomes muted; unmute returns to playing from either.">
+      <svg viewBox="0 0 780 240" role="img" aria-label="Three states: playing, fading out, muted. Mute moves playing to fading; after 40 ms plus four device buffers fading becomes muted; unmute returns to playing from either.">
         <defs>
           <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="head"/></marker>
           <marker id="a3h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="headhot"/></marker>
@@ -251,7 +251,7 @@ a { color: var(--accent); }
 
         <path class="edge" d="M210,108 L303,108" marker-end="url(#a3)"/><text class="lbl" x="257" y="100" text-anchor="middle">mute</text>
         <path class="edge hotline" d="M475,108 L568,108" marker-end="url(#a3h)"/><text class="lbl" x="522" y="100" text-anchor="middle">deadline</text>
-        <text class="sub" x="522" y="80" text-anchor="middle">120 ms + 4 buffers</text>
+        <text class="sub" x="522" y="80" text-anchor="middle">40 ms + 4 buffers</text>
         <path class="edge" d="M305,134 L212,134" marker-end="url(#a3)"/><text class="lbl" x="257" y="152" text-anchor="middle">unmute</text>
         <path class="edge" d="M655,150 L655,200 L125,200 L125,152" marker-end="url(#a3)"/>
         <text class="lbl" x="390" y="218" text-anchor="middle">unmute: open a new stream</text>
@@ -263,7 +263,7 @@ a { color: var(--accent); }
 
 <section>
   <h2>The sound core</h2>
-  <p><code>noiseman-core</code> has no dependencies, does no I/O and never allocates. <code>Noise</code> turns a xorshift64 generator into five colours of noise, each scaled to about −18 dBFS RMS. <code>gain(vol)</code> maps volume 0–100 on a square law, and <code>Voice</code> smooths every gain and kind change with a fade that reaches its target in exactly 100 ms (4800 samples at 48 kHz) along a smoothstep S-curve, 3t² − 2t³, which starts and ends with zero slope.</p>
+  <p><code>noiseman-core</code> has no dependencies, does no I/O and never allocates. <code>Noise</code> turns a xorshift64 generator into five colours of noise, each scaled to about −18 dBFS RMS. <code>gain(vol)</code> maps volume 0–100 on a square law, and <code>Voice</code> smooths every gain and kind change with a fade that reaches its target in exactly 20 ms (960 samples at 48 kHz) along a smoothstep S-curve, 3t² − 2t³, which starts and ends with zero slope.</p>
   <div class="kinds">
     <div class="kind" style="--c:var(--k-white)"><b>White</b><span>Flat spectrum: the raw generator.</span></div>
     <div class="kind" style="--c:var(--k-pink)"><b>Pink</b><span>−3 dB/octave, Paul Kellet's refined filter.</span></div>
@@ -273,7 +273,7 @@ a { color: var(--accent); }
   </div>
   <figure>
     <div class="plate">
-      <svg viewBox="0 0 760 220" role="img" aria-label="Level over time for a kind change from white to brown: level falls from 1 to exactly 0 along an S-curve in 100 ms, the generator switches, then level rises back to 1 along the same curve in another 100 ms.">
+      <svg viewBox="0 0 760 220" role="img" aria-label="Level over time for a kind change from white to brown: level falls from 1 to exactly 0 along an S-curve in 20 ms, the generator switches, then level rises back to 1 along the same curve in another 20 ms.">
         <line class="grid" x1="60" y1="40" x2="700" y2="40"/>
         <line class="grid" x1="60" y1="170" x2="700" y2="170"/>
         <line class="grid" x1="60" y1="40" x2="60" y2="176"/>
@@ -282,10 +282,10 @@ a { color: var(--accent); }
         <line class="grid" x1="540" y1="170" x2="540" y2="176"/>
         <line class="grid" x1="700" y1="170" x2="700" y2="176"/>
         <text class="lbl" x="60" y="192" text-anchor="middle">0</text>
-        <text class="lbl" x="220" y="192" text-anchor="middle">60</text>
-        <text class="lbl" x="380" y="192" text-anchor="middle">120</text>
-        <text class="lbl" x="540" y="192" text-anchor="middle">180</text>
-        <text class="lbl" x="700" y="192" text-anchor="middle">240 ms</text>
+        <text class="lbl" x="220" y="192" text-anchor="middle">12</text>
+        <text class="lbl" x="380" y="192" text-anchor="middle">24</text>
+        <text class="lbl" x="540" y="192" text-anchor="middle">36</text>
+        <text class="lbl" x="700" y="192" text-anchor="middle">48 ms</text>
         <text class="lbl" x="50" y="44" text-anchor="end">1</text>
         <text class="lbl" x="50" y="174" text-anchor="end">0</text>
         <text class="sub" x="20" y="110" transform="rotate(-90 20 110)" text-anchor="middle">level</text>
@@ -301,7 +301,7 @@ a { color: var(--accent); }
         <text x="640" y="62" style="fill:var(--k-brown)">brown</text>
       </svg>
     </div>
-    <figcaption>A kind change at 48 kHz, computed from <code>Voice</code>. The old generator fades to exactly 0 in 100 ms (4800 samples) before the new one starts and fades in over another 100 ms, so the two kinds never overlap and nothing clicks.</figcaption>
+    <figcaption>A kind change at 48 kHz, computed from <code>Voice</code>. The old generator fades to exactly 0 in 20 ms (960 samples) before the new one starts and fades in over another 20 ms, so the two kinds never overlap and nothing clicks.</figcaption>
   </figure>
 </section>
 
@@ -370,7 +370,7 @@ a { color: var(--accent); }
         <text class="lbl" x="531" y="173" text-anchor="middle">copy</text>
       </svg>
     </div>
-    <figcaption>Mute sends volume 0, lets the voice fade (100 ms), and suspends the AudioContext 200 ms later, so a muted tab does no audio work. The worklet reuses a cached <code>Float32Array</code> view of WASM memory (rebuilding it only on the first block or if the buffer or block size changes), so a normal block allocates nothing.</figcaption>
+    <figcaption>Mute sends volume 0, lets the voice fade (20 ms), and suspends the AudioContext 120 ms later, so a muted tab does no audio work. The worklet reuses a cached <code>Float32Array</code> view of WASM memory (rebuilding it only on the first block or if the buffer or block size changes), so a normal block allocates nothing.</figcaption>
   </figure>
 </section>
 

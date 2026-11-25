@@ -1,7 +1,7 @@
 use crate::{Kind, Noise};
 
 /// How long every gain change takes, mute included; the daemon's stream-drop deadline is derived from it.
-pub const FADE_SECS: f32 = 0.1;
+pub const FADE_SECS: f32 = 0.02;
 
 /// A noise generator with click-free changes: gain moves to its target in exactly [`FADE_SECS`] along a smoothstep
 /// S-curve, and a kind change fades to silence before switching generators.
@@ -114,15 +114,16 @@ mod tests {
     }
 
     #[test]
-    fn fade_length_is_100_ms() {
-        assert_eq!(Voice::new(48_000, 1, Kind::White).len, 4800);
-        assert_eq!(Voice::new(44_100, 1, Kind::White).len, 4410);
+    fn fade_length_is_20_ms() {
+        assert_eq!(Voice::new(48_000, 1, Kind::White).len, 960);
+        assert_eq!(Voice::new(44_100, 1, Kind::White).len, 882);
     }
 
     #[test]
     fn volume_change_is_an_s_curve_that_lands_exactly() {
         let mut v = Voice::new(48_000, 1, Kind::White);
-        let levels = run(&mut v, Kind::White, 0.7, 4800);
+        let n = v.len;
+        let levels = run(&mut v, Kind::White, 0.7, n);
         assert_eq!(v.level, 0.7);
         let steps: Vec<f32> = levels.windows(2).map(|w| w[1] - w[0]).collect();
         assert!(steps.iter().all(|&d| d >= 0.0), "monotonic");
@@ -133,25 +134,26 @@ mod tests {
     #[test]
     fn kind_change_switches_at_silence() {
         let mut v = Voice::new(48_000, 1, Kind::White);
-        run(&mut v, Kind::White, 1.0, 4800);
-        for _ in 0..4800 {
+        let n = v.len;
+        run(&mut v, Kind::White, 1.0, n);
+        for _ in 0..n {
             assert!(v.playing == Kind::White || v.level == 0.0);
             v.step(Kind::Brown, 1.0);
         }
         assert_eq!((v.playing, v.level), (Kind::Brown, 0.0));
-        run(&mut v, Kind::Brown, 1.0, 4800);
+        run(&mut v, Kind::Brown, 1.0, n);
         assert_eq!(v.level, 1.0);
     }
 
     #[test]
     fn fill_matches_step() {
-        // (kind, gain, buffer size, buffers): fades land mid-buffer at 4800 samples unless noted.
+        // (kind, gain, buffer size, buffers); a fade takes 960 samples, so fades end mid-buffer unless noted.
         let script = [
             (Kind::Brown, 0.5, 4096, 3),
-            (Kind::Brown, 0.2, 127, 10),
+            (Kind::Brown, 0.2, 127, 4),
             (Kind::Brown, 0.9, 1, 50), // retarget mid-fade
             (Kind::Brown, 0.9, 128, 60),
-            (Kind::Pink, 0.9, 4096, 4), // switches at sample 4800, mid second buffer
+            (Kind::Pink, 0.9, 4096, 4), // switches at sample 960, mid first buffer
             (Kind::Violet, 0.9, 127, 100),
             (Kind::White, 0.0, 4096, 2), // kind change and mute at once
             (Kind::White, 0.0, 128, 50),
@@ -180,10 +182,11 @@ mod tests {
     #[test]
     fn retarget_mid_fade_is_continuous() {
         let mut v = Voice::new(48_000, 1, Kind::White);
-        let mut levels = run(&mut v, Kind::White, 1.0, 2400);
-        levels.extend(run(&mut v, Kind::White, 0.0, 4800));
+        let n = v.len;
+        let mut levels = run(&mut v, Kind::White, 1.0, n / 2);
+        levels.extend(run(&mut v, Kind::White, 0.0, n));
         assert_eq!(v.level, 0.0);
-        let max_step = 1.5 / 4800.0 + 1e-6; // smoothstep's peak slope is 1.5 spans per fade length
+        let max_step = 1.5 / n as f32 + 1e-6; // smoothstep's peak slope is 1.5 spans per fade length
         assert!(levels.windows(2).all(|w| (w[1] - w[0]).abs() <= max_step));
     }
 }

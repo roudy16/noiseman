@@ -11,7 +11,7 @@ web_total_bytes = 22_528       # top-level target/web: page, css, js, wasm, favi
 
 [dsp]
 # Voice::fill per 4096-frame buffer, as the daemon and the wasm run it: the kind's generator, chosen once per buffer,
-# plus the gain fade, which once settled is one well-predicted branch per sample (a fade runs for 100 ms after a
+# plus the gain fade, which once settled is one well-predicted branch per sample (a fade runs for 20 ms after a
 # change). Worst kind: blue ~2.4-2.5 ns, pink ~2.4, brown ~1.2 (2.7 with the former per-sample Voice::step) on the Linux
 # baseline machine (2026-11-25); Noise::next alone ran 3.5-3.6 on the i9-11980HK under Windows and WSL Linux
 # alike (Voice::step not yet measured there). Machine dependent: about 2x headroom, for a slower or busy box.

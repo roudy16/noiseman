@@ -2,8 +2,8 @@
 // shortly after every pause, so a paused page does no audio work.
 const KINDS = ["Brown", "White", "Blue", "Pink", "Violet"];
 const ACCENTS = ["#d08f4a", "#8c96a8", "#4f8fd6", "#d4708f", "#9b74d6"];
-// The voice's 100 ms fade (FADE_SECS in crates/core) plus message and output latency.
-const SUSPEND_AFTER_MS = 200;
+// The voice's 20 ms fade (FADE_SECS in crates/core) plus message and output latency.
+const SUSPEND_AFTER_MS = 120;
 
 const state = { kind: 0, vol: 50, playing: false, ...load() };
 let wasm = loadWasm();

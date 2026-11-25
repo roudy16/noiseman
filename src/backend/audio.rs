@@ -15,6 +15,9 @@ use noiseman_core::Voice;
 static GAIN: AtomicU32 = AtomicU32::new(0);
 static KIND: AtomicU8 = AtomicU8::new(Kind::Brown as u8);
 
+// About 85 ms at 48 kHz, and PulseAudio keeps two queued, so a change is heard ~170 ms after the key press. Kept on
+// purpose: ~20 wakeups/s while playing, where 1024 frames would cut the lag to ~43 ms for ~90/s (DESIGN.md: Buffer
+// size).
 const BUFFER_FRAMES: u32 = 4096;
 
 pub fn kind() -> Kind {
