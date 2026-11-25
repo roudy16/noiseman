@@ -4,7 +4,7 @@ use super::client::Client;
 use crate::protocol::{Command, Kind, State};
 
 pub const USAGE: &str = "\
-noiseman - background noise generator (white, pink, brown, blue, violet)
+noiseman - background noise generator (brown, white, blue, pink, violet)
 
 usage: noiseman [COMMAND]
 
@@ -14,13 +14,13 @@ Commands (non-interactive; print state and exit):
   mute                 mute playback (does not start the daemon)
   unmute               unmute playback (starts the daemon if needed)
   toggle               toggle mute (starts playing if not running)
-  kind KIND            switch noise: white | pink | brown | blue | violet
+  kind KIND            switch noise: brown | white | blue | pink | violet
   vol N | +N | -N      set volume (0-100) or adjust relatively (e.g. vol +5, vol -5)
   status               show current state (does not start the daemon)
 
 Interactive & daemon:
   (none) | tui         interactive terminal UI (requires a TTY)
-  gui                  desktop window and tray (requires --features gui)
+  gui                  desktop window (with a tray icon on Linux)
   daemon [--muted]     run the player in the foreground (--muted: start silent)
   help | -h | --help   show this help
 

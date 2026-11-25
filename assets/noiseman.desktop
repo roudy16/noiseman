@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=noiseman
-Comment=Noise generator (white, pink, brown, blue, violet)
+Comment=Noise generator (brown, white, blue, pink, violet)
 Exec=@BIN@
 Icon=noiseman
 Terminal=true

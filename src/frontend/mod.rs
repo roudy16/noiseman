@@ -13,6 +13,11 @@ pub fn run(args: &[String]) -> ExitCode {
         None | Some("tui") if args.len() <= 1 => tui::run(),
         #[cfg(feature = "gui")]
         Some("gui") if args.len() == 1 => gui::run(),
+        #[cfg(not(feature = "gui"))]
+        Some("gui") if args.len() == 1 => {
+            eprintln!("noiseman: this build has no window; rebuild with `--features gui`");
+            ExitCode::FAILURE
+        }
         Some("help" | "-h" | "--help") => {
             println!("{}", cli::USAGE);
             ExitCode::SUCCESS
