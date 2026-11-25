@@ -246,7 +246,7 @@ fn cube(r: u8, g: u8, b: u8) -> Color {
 }
 const LOGO: [&str; 2] = ["  ▃ ▆▁ ▄ ▇  ▂ ", " ▅█▇██▃█▆██▄█ "];
 const KEYS: [(&str, &str); 5] =
-    [("1-5 ↑↓", "noise"), ("←→", "volume"), ("m", "mute"), ("q", "leave (keeps playing)"), ("s", "stop")];
+    [("1-5 ↑↓ jk", "noise"), ("←→ hl", "volume"), ("m", "mute"), ("q esc", "leave (keeps playing)"), ("s", "stop")];
 const KEYS_SHORT: [(&str, &str); 5] = [("1-5", "noise"), ("←→", "vol"), ("m", "mute"), ("q", "leave"), ("s", "stop")];
 
 fn hint_width(keys: &[(&str, &str)], sep: usize) -> u16 {

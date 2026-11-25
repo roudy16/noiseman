@@ -191,6 +191,16 @@ impl App {
         el.exit();
     }
 
+    /// The close button, `q` or Esc: hide to the tray, or quit when there is none.
+    fn close(&mut self, el: &ActiveEventLoop) {
+        if self.tray.is_some() {
+            self.hide();
+            self.refresh();
+        } else {
+            self.quit(el);
+        }
+    }
+
     fn click(&mut self, x: i32, y: i32) {
         if let Some(i) = (0..KINDS).find(|&i| btn(i).contains(x, y)) {
             self.send(Command::Kind(Kind::ALL[i]));
@@ -305,11 +315,7 @@ impl ApplicationHandler<Event> for App {
 
     fn window_event(&mut self, el: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
         match event {
-            WindowEvent::CloseRequested if self.tray.is_some() => {
-                self.hide();
-                self.refresh();
-            }
-            WindowEvent::CloseRequested => self.quit(el),
+            WindowEvent::CloseRequested => self.close(el),
             WindowEvent::RedrawRequested => {
                 if let Err(e) = self.draw() {
                     eprintln!("noiseman: redraw failed: {e}");
@@ -336,9 +342,16 @@ impl ApplicationHandler<Event> for App {
                 event: KeyEvent { logical_key, state: ElementState::Pressed, repeat, .. },
                 ..
             } => {
+                let cycle = |step: usize| {
+                    let i = Kind::ALL.iter().position(|&k| k == self.state.kind).unwrap_or(0);
+                    Command::Kind(Kind::ALL[(i + step) % KINDS])
+                };
                 match logical_key.as_ref() {
-                    Key::Named(NamedKey::ArrowLeft) => self.send(Command::VolBy(-5)),
-                    Key::Named(NamedKey::ArrowRight) => self.send(Command::VolBy(5)),
+                    Key::Character("q") | Key::Named(NamedKey::Escape) if !repeat => return self.close(el),
+                    Key::Named(NamedKey::ArrowLeft) | Key::Character("h") => self.send(Command::VolBy(-5)),
+                    Key::Named(NamedKey::ArrowRight) | Key::Character("l") => self.send(Command::VolBy(5)),
+                    Key::Named(NamedKey::ArrowUp) | Key::Character("k") => self.send(cycle(KINDS - 1)),
+                    Key::Named(NamedKey::ArrowDown) | Key::Character("j") => self.send(cycle(1)),
                     Key::Character("m") | Key::Named(NamedKey::Space) if !repeat => self.send(Command::ToggleMute),
                     Key::Character(c) => match c.parse::<usize>() {
                         Ok(n @ 1..=KINDS) => self.send(Command::Kind(Kind::ALL[n - 1])),

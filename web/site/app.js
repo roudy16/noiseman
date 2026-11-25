@@ -122,10 +122,10 @@ addEventListener("keydown", (e) => {
   const inRange = e.target === $("vol");
   const onPlay = e.target === $("play");
   if (e.key >= "1" && e.key <= "5") setKind(+e.key - 1);
-  else if (e.key === "ArrowUp" && !inRange) setKind(state.kind - 1);
-  else if (e.key === "ArrowDown" && !inRange) setKind(state.kind + 1);
-  else if (e.key === "ArrowLeft" && !inRange) setVol(state.vol - 5);
-  else if (e.key === "ArrowRight" && !inRange) setVol(state.vol + 5);
+  else if (e.key === "k" || (e.key === "ArrowUp" && !inRange)) setKind(state.kind - 1);
+  else if (e.key === "j" || (e.key === "ArrowDown" && !inRange)) setKind(state.kind + 1);
+  else if (e.key === "h" || (e.key === "ArrowLeft" && !inRange)) setVol(state.vol - 5);
+  else if (e.key === "l" || (e.key === "ArrowRight" && !inRange)) setVol(state.vol + 5);
   else if (e.key === "m" || (e.key === " " && !onPlay)) {
     if (!e.repeat) setPlaying(!state.playing);
   }

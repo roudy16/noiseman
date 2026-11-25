@@ -48,6 +48,10 @@ noiseman daemon          # run the player in the foreground (--muted to start si
 noiseman --help          # full command reference
 ```
 
+Keys in the terminal UI and the window: `1`-`5` pick a noise, `↑`/`↓` or `k`/`j` cycle it, `←`/`→` or `h`/`l`
+change the volume, `m` or space mutes, `q` or `Esc` leaves (the window hides to the tray, or quits without one), and
+`s` stops the player (terminal UI only). The browser demo takes the same noise, volume and mute keys.
+
 ## Development
 
 Dev workflows go through [`just`](https://github.com/casey/just) (run `just` alone to list all recipes):
