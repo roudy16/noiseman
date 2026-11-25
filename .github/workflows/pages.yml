@@ -10,8 +10,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # One deployment at a time; a newer push waits rather than cancelling one in progress.
 concurrency:
@@ -19,11 +17,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  pages:
+  build:
     runs-on: ubuntu-slim
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
       # Third-party action pinned to a commit; bump the SHA (and comment) to update.
@@ -33,15 +28,25 @@ jobs:
       - name: Build web demo
         run: |
           cargo build -q --release -p noiseman-web --target wasm32-unknown-unknown
-          mkdir -p target/web/architecture
+          mkdir -p target/web/architecture target/web/preview
           cp web/site/* target/web/
           cp target/wasm32-unknown-unknown/release/noiseman_web.wasm target/web/noiseman.wasm
           cp assets/noiseman.svg target/web/favicon.svg
           cp docs/architecture.html target/web/architecture/index.html
-          mkdir -p target/web/preview
           cp assets/noiseman-web.png target/web/preview/noiseman.png
       - uses: actions/upload-pages-artifact@v5
         with:
           path: target/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-slim
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v5
