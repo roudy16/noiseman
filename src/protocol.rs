@@ -112,8 +112,11 @@ impl fmt::Display for State {
 }
 
 /// The per-user private directory for the socket, the lock file and the daemon log.
+/// Absolute, so the daemon (which leaves its starting directory) and its clients agree on a relative
+/// `$XDG_RUNTIME_DIR` or `$TMPDIR`.
 pub fn runtime_dir() -> Result<PathBuf, String> {
-    platform::runtime_dir()
+    let dir = platform::runtime_dir()?;
+    std::path::absolute(&dir).map_err(|e| format!("cannot resolve {}: {e}", dir.display()))
 }
 
 pub fn socket_path() -> Result<PathBuf, String> {

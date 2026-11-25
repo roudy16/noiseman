@@ -39,7 +39,7 @@ just deps                  # check advisories and outdated dependencies (network
 just web                   # build the static browser demo into target/web
 just web-serve             # serve the browser demo on http://localhost:8000
 just profile [kind] [secs] # profile the DSP into profiles/dsp-<kind>.*
-just install               # install binary and nsm link to ~/.local/bin (+ icons, desktop entry on Linux)
+just install               # install the gui build and nsm link to ~/.local/bin (+ icons, desktop entry on Linux)
 just package [target]      # build a release archive (with gui, plus license texts) into target/dist
 just clean                 # remove build artifacts
 ```

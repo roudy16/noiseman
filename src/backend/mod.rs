@@ -51,6 +51,11 @@ pub fn serve(muted: bool) -> Result<(), String> {
     }
     let listener = UnixListener::bind(&path).map_err(|e| format!("cannot listen on {}: {e}", path.display()))?;
     platform::restrict_to_owner(&path).map_err(|e| format!("cannot restrict {}: {e}", path.display()))?;
+    // Leave the starting shell's directory, which the daemon would otherwise keep in use for its whole life (e.g. a
+    // drive that then cannot be unmounted). Every path above is absolute.
+    if let Some(Err(e)) = path.parent().map(std::env::set_current_dir) {
+        eprintln!("noiseman: cannot leave the starting directory: {e}");
+    }
 
     let (tx, rx) = mpsc::channel();
     let accept_tx = tx.clone();

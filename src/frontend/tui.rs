@@ -1,4 +1,4 @@
-use std::io::{self, Stdout, Write};
+use std::io::{self, IsTerminal, Stdout, Write};
 use std::process::ExitCode;
 use std::sync::mpsc;
 use std::thread;
@@ -68,6 +68,9 @@ pub fn run() -> ExitCode {
 
 /// Returns a message to print after leaving the screen.
 fn exec() -> Result<Option<String>, String> {
+    if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
+        return Err("the terminal UI needs a terminal; try `noiseman play` or `noiseman gui`".into());
+    }
     let Client { mut sender, mut receiver } = Client::connect(true)?;
     sender.send(Command::Watch)?;
     let (tx, rx) = mpsc::channel();

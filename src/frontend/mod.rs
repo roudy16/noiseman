@@ -18,6 +18,10 @@ pub fn run(args: &[String]) -> ExitCode {
             eprintln!("noiseman: this build has no window; rebuild with `--features gui`");
             ExitCode::FAILURE
         }
+        Some("version" | "-V" | "--version") => {
+            println!("noiseman {}", env!("CARGO_PKG_VERSION"));
+            ExitCode::SUCCESS
+        }
         Some("help" | "-h" | "--help") => {
             println!("{}", cli::USAGE);
             ExitCode::SUCCESS

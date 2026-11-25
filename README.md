@@ -22,7 +22,7 @@ irm https://github.com/roudy16/noiseman/releases/latest/download/install.ps1 | i
 ```
 
 Both install for your user only, with `nsm` as a short alias. Linux needs PulseAudio or PipeWire and glibc 2.35 or
-newer (Ubuntu 22.04, Debian 12, Fedora 36). Archives for a manual download are on
+newer (Ubuntu 22.04, Debian 12, Fedora 36); macOS needs version 11 or newer. Archives for a manual download are on
 [Releases](https://github.com/roudy16/noiseman/releases); to build from source, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Use
@@ -43,6 +43,14 @@ space mutes, and `s` stops. `q` or `Esc` closes the UI and leaves the noise play
 
 Muted, the player releases the audio device and uses no CPU.
 [How it works](https://roudy16.github.io/noiseman/architecture/) explains the design.
+
+## Troubleshooting
+
+- **No sound:** on Linux, noiseman plays through PulseAudio or PipeWire's pulse server; `pactl info` should show one.
+- **The noise keeps playing after the UI closes:** that is by design; `noiseman stop` (or `s` in the UI) stops it.
+- **Log:** the player writes `noiseman.log` in `$XDG_RUNTIME_DIR`, else in `noiseman-<uid>/` under `$TMPDIR` (or
+  `/tmp`), or on Windows in `%LOCALAPPDATA%\noiseman`.
+- **Bug reports:** include the output of `noiseman --version`.
 
 ## Uninstall
 

@@ -9,6 +9,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 - The window takes `s` to stop the player, `+`/`=` and `-` for the volume, and Tab/Shift-Tab to cycle the noise,
   like the terminal UI. The browser demo also takes `+`/`=` and `-`.
+- `noiseman --version` (or `-V`, or `version`) prints the version.
 
 ### Changed
 
@@ -21,13 +22,21 @@ versions follow [Semantic Versioning](https://semver.org/).
   is slightly larger (328x146).
 - The browser demo says Muted/Mute instead of Paused/Pause, and remembers the noise by name.
 - Easier-to-read key hints at the bottom of the terminal UI.
-- The README is now a short quick start; build instructions moved to CONTRIBUTING.md.
+- The README is now a short quick start, with a troubleshooting section; build instructions moved to CONTRIBUTING.md.
+- The Linux desktop entry opens the window instead of the terminal UI in a terminal; `just install` now builds with
+  the window too.
+- When its install directory is not on PATH, `install.sh` prints the line that adds it for zsh, bash or fish.
+- The macOS archives state macOS 11 as their minimum (the x86_64 one said 10.12).
 
 ### Fixed
 
 - `noiseman help` no longer says the window needs `--features gui` (release builds include it), and lists the noises
   in the new order, as does the desktop entry.
 - `noiseman gui` in a build without the window says how to get one, instead of rejecting `gui` as an unknown command.
+- `noiseman` (or `noiseman tui`) run without a terminal, as from a launcher or a pipe, says it needs one and exits,
+  instead of starting the player.
+- The player no longer keeps the directory it was started from in use (which could keep a drive from unmounting); it
+  runs from the runtime dir.
 
 ## [0.1.0] - 2026-11-25
 

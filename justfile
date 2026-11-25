@@ -70,7 +70,7 @@ deps:
 install:
     #!/usr/bin/env bash
     set -euo pipefail
-    cargo build --release
+    cargo build --release --features gui
     bin="$HOME/.local/bin"
     install -d "$bin"
     install -m755 target/release/noiseman "$bin/noiseman"

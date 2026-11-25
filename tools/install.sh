@@ -61,6 +61,24 @@ desktop_files() {
     echo "Installed icons and a desktop entry to $share"
 }
 
+path_hint() {
+    dir=$1 rc=
+    case "$(basename "${SHELL:-}")" in
+        zsh) rc=.zshrc ;;
+        bash) [ "$2" = Darwin ] && rc=.bash_profile || rc=.bashrc ;;
+        fish)
+            echo "note: $dir is not on PATH; to add it, run: fish_add_path $dir" >&2
+            return
+            ;;
+    esac
+    if [ -n "$rc" ]; then
+        echo "note: $dir is not on PATH; to add it, run:" >&2
+        echo "  echo 'export PATH=\"$dir:\$PATH\"' >> ~/$rc" >&2
+    else
+        echo "note: $dir is not on PATH; add it to run noiseman by name" >&2
+    fi
+}
+
 main() {
     dir=${NOISEMAN_INSTALL_DIR:-$HOME/.local/bin}
     os=$(uname -s)
@@ -101,7 +119,7 @@ main() {
     fi
     case ":$PATH:" in
         *":$dir:"*) ;;
-        *) echo "note: $dir is not on PATH; add it to run noiseman by name" >&2 ;;
+        *) path_hint "$dir" "$os" ;;
     esac
 }
 

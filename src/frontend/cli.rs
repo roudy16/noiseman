@@ -23,6 +23,7 @@ Interactive & daemon:
   gui                  desktop window (with a tray icon on Linux)
   daemon [--muted]     run the player in the foreground (--muted: start silent)
   help | -h | --help   show this help
+  version | -V         show the version (also --version)
 
 Notes:
   - Commands that play or change settings auto-start the background daemon

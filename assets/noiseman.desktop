@@ -2,8 +2,8 @@
 Type=Application
 Name=noiseman
 Comment=Noise generator (brown, white, blue, pink, violet)
-Exec=@BIN@
+Exec=@BIN@ gui
 Icon=noiseman
-Terminal=true
+Terminal=false
 Categories=AudioVideo;Audio;
 Keywords=noise;white;pink;brown;sleep;focus;

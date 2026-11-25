@@ -10,6 +10,8 @@ dist=target/dist
 out=target/$target/release
 windows=false
 [[ $target == *windows* ]] && windows=true
+# One stated minimum for both macOS archives (rustc's x86_64 default is 10.12, aarch64's 11.0).
+[[ $target == *apple* ]] && export MACOSX_DEPLOYMENT_TARGET=11.0
 rm -rf "${dist:?}/$name" "$dist/$name".{tar.gz,zip}{,.sha256}
 mkdir -p "$dist/$name"
 
