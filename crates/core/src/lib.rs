@@ -10,28 +10,28 @@ pub use voice::Voice;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 pub enum Kind {
-    White,
-    Pink,
     Brown,
+    White,
     Blue,
+    Pink,
     Violet,
 }
 
 impl Kind {
-    pub const ALL: [Kind; 5] = [Kind::White, Kind::Pink, Kind::Brown, Kind::Blue, Kind::Violet];
+    pub const ALL: [Kind; 5] = [Kind::Brown, Kind::White, Kind::Blue, Kind::Pink, Kind::Violet];
 
     pub fn label(self) -> &'static str {
         match self {
-            Kind::White => "White",
-            Kind::Pink => "Pink",
             Kind::Brown => "Brown",
+            Kind::White => "White",
             Kind::Blue => "Blue",
+            Kind::Pink => "Pink",
             Kind::Violet => "Violet",
         }
     }
 
     pub fn from_u8(v: u8) -> Kind {
-        Self::ALL.get(v as usize).copied().unwrap_or(Kind::White)
+        Self::ALL.get(v as usize).copied().unwrap_or(Kind::Brown)
     }
 
     pub fn parse(s: &str) -> Option<Kind> {

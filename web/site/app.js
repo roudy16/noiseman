@@ -1,10 +1,10 @@
 // Page controls. The AudioContext starts on the first Play (browsers require a user gesture) and is suspended
 // shortly after every pause, so a paused page does no audio work.
-const KINDS = ["White", "Pink", "Brown", "Blue", "Violet"];
-const ACCENTS = ["#8c96a8", "#d4708f", "#d08f4a", "#4f8fd6", "#9b74d6"];
+const KINDS = ["Brown", "White", "Blue", "Pink", "Violet"];
+const ACCENTS = ["#d08f4a", "#8c96a8", "#4f8fd6", "#d4708f", "#9b74d6"];
 const FADE_MS = 150;
 
-const state = { kind: 2, vol: 50, playing: false, ...load() };
+const state = { kind: 0, vol: 50, playing: false, ...load() };
 let wasm = loadWasm();
 let audioCtx = null;
 let audio = null;
