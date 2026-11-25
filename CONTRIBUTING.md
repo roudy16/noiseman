@@ -1,7 +1,7 @@
 # Contributing
 
-`AGENTS.md` describes the layout, invariants and release process; `DESIGN.md` has the full design; open work is in
-`TODO.md`. Run `just check` before committing. CI runs `just ci` (fmt check, lint, tests and the size gates; the
+`AGENTS.md` describes the layout, invariants and release process; `DESIGN.md` has the full design. Report bugs and
+propose changes as [GitHub issues](https://github.com/roudy16/noiseman/issues). Run `just check` before committing. CI runs `just ci` (fmt check, lint, tests and the size gates; the
 timing and runtime gates are for local runs) on Linux, and clippy and tests on macOS and Windows.
 
 ## Build from source
