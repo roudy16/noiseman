@@ -16,10 +16,12 @@ function Install-Noiseman {
 
     # AF_UNIX sockets, which the daemon listens on, arrived in Windows 10 1803 (build 17134).
     if ([Environment]::OSVersion.Version.Build -lt 17134) { throw 'noiseman needs Windows 10 version 1803 or later' }
-    $arch = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture  # the OS's, even from an emulated shell
+    # The machine's own architecture, even from an emulated or 32-bit shell (Windows PowerShell 5.1 lacks
+    # RuntimeInformation.OSArchitecture, and $env:PROCESSOR_ARCHITECTURE is the shell's).
+    $arch = (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment').PROCESSOR_ARCHITECTURE
     $target = switch ($arch) {
-        'X64' { 'x86_64-pc-windows-msvc' }
-        'Arm64' { 'aarch64-pc-windows-msvc' }
+        'AMD64' { 'x86_64-pc-windows-msvc' }
+        'ARM64' { 'aarch64-pc-windows-msvc' }
         default { throw "no prebuilt binary for Windows on $arch; build from source ($repo)" }
     }
     $base = if ($env:NOISEMAN_VERSION) { "$repo/releases/download/$env:NOISEMAN_VERSION" } else { "$repo/releases/latest/download" }
