@@ -27,14 +27,20 @@ impl Noise {
         }
     }
 
+    /// Uniform in [-1, 1), from the top 23 bits as the mantissa of a float in [1, 2). Not `bits as f32`: x86's
+    /// int-to-float conversion writes only part of its register, so it waits on whatever that register last held; in
+    /// an out-of-line `pink_raw` that was the previous sample's whole filter sum, which made pink and blue about 3x
+    /// slower (12 ns/sample instead of 4 on an i9-11980HK, on Windows and Linux alike).
     fn white(&mut self) -> f32 {
         self.rng ^= self.rng << 13;
         self.rng ^= self.rng >> 7;
         self.rng ^= self.rng << 17;
-        (self.rng >> 40) as f32 / (1u32 << 23) as f32 - 1.0
+        f32::from_bits(0x3f80_0000 | (self.rng >> 41) as u32) * 2.0 - 3.0
     }
 
-    // Paul Kellet's "refined" pink filter.
+    // Paul Kellet's "refined" pink filter. Always inlined: pink and blue both call it, so `opt-level = "s"` keeps it
+    // out of line, and the call (state through memory, xmm6/xmm7 saved on Windows) costs about 0.7 ns/sample of ~4.
+    #[inline(always)]
     fn pink_raw(&mut self) -> f32 {
         let w = self.white();
         let b = &mut self.pink;

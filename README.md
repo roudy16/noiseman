@@ -127,19 +127,12 @@ demo's WebAssembly is built only from `crates/core` and `web/`, with no third-pa
   (`tools/winperf.ps1`) measures the daemon playing and muted, the TUI and
   the CLI; baselines and limits are in `gates.toml`
   `[windows]`.
-- [ ] **Pink and blue DSP speed (seen on Windows).** On the Windows baseline
-  machine, `noise_profile` runs pink at 12.7 and blue at 13.6 ns/sample, about
-  7x white (1.8), over the 6.0 ns `max_ns_per_sample` gate. The cause found so
-  far: `Noise::pink_raw` (Kellet's filter, `crates/core/src/noise.rs`) is not
-  inlined into the sample loop on x86_64-pc-windows-msvc, so each sample pays a
-  call that saves and restores xmm6/xmm7 (callee-saved in the Windows x64 ABI)
-  and goes through the seven filter states in memory. A trial
-  `#[inline(always)]` on `pink_raw` brought pink to 6.3-8.1 and blue to
-  4.8-7.2 ns/sample: about half, but still noisy and sometimes over the gate,
-  so something else costs too (check whether `Noise::next` itself is inlined,
-  and the filter's serial dependency chain). Before changing the core, run
-  `noise_profile all 20` on Linux to see whether it has the same pattern
-  there, and rerun both after any fix (the web demo shares this code).
+- [x] **Pink and blue DSP speed.** They ran at 12-13 ns/sample on the Windows
+  baseline machine, over the 6.0 ns gate, and WSL Linux on the same CPU was as
+  slow. The cause was a false dependency: `white()`'s int-to-float conversion
+  waited on the previous sample's filter sum. `white()` now builds the float
+  from the mantissa bits, and `pink_raw` is always inlined: 3.5-3.6 ns/sample
+  on Windows and Linux. Recheck on the Linux baseline machine.
 - [ ] **GUI on fractional display scaling.** The window asks for 312x124
   logical pixels, but the bitmap font only draws at whole-number scales, so at
   a fractional OS scale the controls leave an empty band on the right and at
