@@ -11,6 +11,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   (with the package to install), a glibc older than the binary needs (with both versions), musl (Alpine), NixOS
   without nix-ld, a 32-bit system, a CPU other than 64-bit x86 or ARM, or macOS older than 11. The checks that need no
   download run before it.
+- Linux needs glibc 2.34, not 2.35 as stated before: the binaries never needed more, so RHEL 9 and its rebuilds,
+  Amazon Linux 2023 and Fedora 35 can run them too.
 
 ## [0.1.1] - 2026-11-25
 

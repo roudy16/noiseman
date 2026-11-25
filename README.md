@@ -23,8 +23,8 @@ irm https://github.com/roudy16/noiseman/releases/latest/download/install.ps1 | i
 
 Both install the terminal build (commands and terminal UI) for your user only, with `nsm` as a short alias. For the
 window too, install the gui build: pipe into `NOISEMAN_GUI=1 sh` instead of `sh`, or on Windows run
-`$env:NOISEMAN_GUI = '1'` first. Linux needs PulseAudio or PipeWire and glibc 2.35 or newer (Ubuntu 22.04, Debian 12,
-Fedora 36); macOS needs version 11 or newer. Archives for a manual download (`noiseman-<target>`, or
+`$env:NOISEMAN_GUI = '1'` first. Linux needs PulseAudio or PipeWire and glibc 2.34 or newer (Ubuntu 22.04, Debian 12,
+Fedora 35, RHEL 9); macOS needs version 11 or newer. Archives for a manual download (`noiseman-<target>`, or
 `noiseman-gui-<target>` with the window) are on [Releases](https://github.com/roudy16/noiseman/releases); to build
 from source, see [CONTRIBUTING.md](CONTRIBUTING.md).
 

@@ -73,7 +73,7 @@ explain_failure() {
         *GLIBC_*)
             need=$(echo "$err" | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -t. -k1,1n -k2,2n | tail -n 1)
             have=$(getconf GNU_LIBC_VERSION 2>/dev/null | cut -d' ' -f2)
-            die "needs glibc $need or newer; this system has ${have:-an older one} (Ubuntu 22.04, Debian 12, Fedora 36 and later have it); build from source ($repo)"
+            die "needs glibc $need or newer; this system has ${have:-an older one} (Ubuntu 22.04, Debian 12, Fedora 35, RHEL 9 and later have it); build from source ($repo)"
             ;;
         *)
             die "the $target binary does not run here: ${err:-no error message}; build from source ($repo)"
