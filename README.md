@@ -31,7 +31,10 @@ To include the optional window and (on Linux) system-tray icon:
 cargo install --path . --features gui
 ```
 
-For a shorter command, create an `nsm` symlink (`ln -sfn noiseman ~/.cargo/bin/nsm`) or shell alias (`alias nsm=noiseman`). On Linux with `just`, `just install` does this for you in `~/.local/bin` along with hicolor icons and a `.desktop` entry.
+Or, with [`just`](https://github.com/casey/just), `just install` builds and installs `noiseman` to `~/.local/bin`
+with a shorter `nsm` link, on Linux and macOS. It leaves an existing `nsm` alone and warns instead. On Linux it also
+installs hicolor icons and a `.desktop` entry. After `cargo install`, make the link yourself
+(`ln -s noiseman ~/.cargo/bin/nsm`) or use a shell alias (`alias nsm=noiseman`).
 
 ## Usage
 
@@ -69,7 +72,7 @@ just deps                  # check advisories and outdated dependencies (network
 just web                   # build the static browser demo into target/web
 just web-serve             # serve the browser demo on http://localhost:8000
 just profile [kind] [secs] # profile the DSP into profiles/dsp-<kind>.*
-just install               # install binary, nsm alias, icons and desktop entry (Linux)
+just install               # install binary and nsm link to ~/.local/bin (+ icons, desktop entry on Linux)
 just clean                 # remove build artifacts
 ```
 

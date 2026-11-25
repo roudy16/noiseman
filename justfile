@@ -52,16 +52,35 @@ gates: web
 deps:
     python3 tools/deps.py
 
-# install binary (plus an `nsm` alias) to ~/.local/bin, hicolor icons and desktop entry for the current user
+# install noiseman and an `nsm` link to ~/.local/bin for the current user; on Linux also icons and a desktop entry
 install:
+    #!/usr/bin/env bash
+    set -euo pipefail
     cargo build --release
-    install -Dm755 target/release/noiseman ~/.local/bin/noiseman
-    ln -sfn noiseman ~/.local/bin/nsm
-    install -Dm644 assets/noiseman.svg ~/.local/share/icons/hicolor/scalable/apps/noiseman.svg
-    for s in 48 64 128 256; do install -Dm644 assets/noiseman-$s.png ~/.local/share/icons/hicolor/${s}x${s}/apps/noiseman.png; done
-    mkdir -p ~/.local/share/applications
-    sed "s|@BIN@|$HOME/.local/bin/noiseman|g" assets/noiseman.desktop > ~/.local/share/applications/noiseman.desktop
-    -update-desktop-database ~/.local/share/applications
+    bin="$HOME/.local/bin"
+    install -d "$bin"
+    install -m755 target/release/noiseman "$bin/noiseman"
+    # Never replace or shadow someone else's `nsm`: warn and leave it be.
+    other=$(command -v nsm || true)
+    if [[ (-e $bin/nsm || -L $bin/nsm) && $(readlink "$bin/nsm") != noiseman ]]; then
+        echo "warning: $bin/nsm already exists and is not noiseman's; not linking nsm" >&2
+    elif [[ -n $other && $(basename "$(readlink -f "$other")") != noiseman ]]; then
+        echo "warning: nsm on PATH is $other, not noiseman; not linking nsm" >&2
+    elif [[ ! -L $bin/nsm ]]; then
+        ln -s noiseman "$bin/nsm"
+    fi
+    if [[ :$PATH: != *":$bin:"* ]]; then
+        echo "note: $bin is not on PATH; add it to run noiseman by name" >&2
+    fi
+    [[ $(uname -s) == Linux ]] || exit 0
+    share="$HOME/.local/share"
+    install -Dm644 assets/noiseman.svg "$share/icons/hicolor/scalable/apps/noiseman.svg"
+    for s in 48 64 128 256; do
+        install -Dm644 assets/noiseman-$s.png "$share/icons/hicolor/${s}x${s}/apps/noiseman.png"
+    done
+    install -d "$share/applications"
+    sed "s|@BIN@|$bin/noiseman|g" assets/noiseman.desktop > "$share/applications/noiseman.desktop"
+    update-desktop-database "$share/applications" 2>/dev/null || true
 
 # build the web demo (static files) into target/web
 web:
