@@ -983,6 +983,7 @@ dependencies = [
  "libc",
  "noiseman-core",
  "softbuffer",
+ "windows-sys 0.61.2",
  "winit",
 ]
 

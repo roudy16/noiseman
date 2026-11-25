@@ -9,14 +9,14 @@ makes the sound, and you control it from the terminal: a TUI, or one-line comman
 for scripts and keybindings. A window with a tray icon is optional. Playing takes about 1 MB of private memory and
 under 0.1% of one core; muted, the player releases the audio device and sleeps, with no wakeups at all.
 
-The player owns the audio (cpal); the CLI and TUI talk to it over a Unix socket. The sound comes from a
+The player owns the audio (cpal); the CLI and TUI talk to it over a Unix socket (a named pipe on Windows). The sound comes from a
 dependency-free core crate (`crates/core`) that also compiles to WebAssembly for the browser demo (`web/`).
 [How it works](https://roudy16.github.io/noiseman/architecture/) has diagrams of the player, the sound core and the
 web demo (source `docs/architecture.html`); `DESIGN.md` has the full design.
 
 ## Install
 
-**Supported systems:** Linux (PulseAudio or PipeWire via `pipewire-pulse`) and macOS (CoreAudio). Windows is not yet supported for the native app, though the browser demo works on any OS.
+**Supported systems:** Linux (PulseAudio or PipeWire via `pipewire-pulse`), macOS (CoreAudio) and Windows 10 or later (WASAPI; build from source for now). The browser demo works on any OS.
 
 ### Prebuilt binary
 
@@ -114,12 +114,22 @@ demo's WebAssembly is built only from `crates/core` and `web/`, with no third-pa
 
 ## TODO
 
-- [ ] **Windows support.** The player and its clients talk over a Unix socket
-  (`std::os::unix::net`), so the crate builds only on Linux and macOS. Windows
-  needs another transport for `src/protocol.rs`'s line protocol, e.g. a named
-  pipe (`\\.\pipe\noiseman-<user>`), plus a replacement for `setsid` when
-  autostarting the player and for the lock/runtime-dir logic. The TUI
-  (crossterm) and the audio (cpal/WASAPI) already support Windows.
+- [ ] **Windows performance baseline.** The runtime gates (daemon memory,
+  threads, CPU, wakeups; TUI and CLI memory) read `/proc`, so `just gates`
+  skips them on Windows and only the size and DSP gates run there. Measure the
+  daemon on Windows (e.g. working set, private bytes, thread count and context
+  switches via the process APIs or `Get-Process`/ETW), playing and muted, and
+  either extend `tools/gates.py` or record baselines in `gates.toml`. Do this
+  before the GUI scaling change below, so that change is measured against it.
+- [ ] **GUI on fractional display scaling.** The window asks for 312x124
+  logical pixels, but the bitmap font only draws at whole-number scales, so at
+  a fractional OS scale the controls leave an empty band on the right and at
+  the bottom (seen on Windows at 250%: a 780x310 window drawn at 2x, 624x248).
+  Linux with fractional scaling has the same gap. Fix: pick a whole scale from
+  the scale factor (e.g. round 2.5 up to 3), size the window to exactly
+  WIN_W x WIN_H times that in physical pixels, and redo it on
+  `WindowEvent::ScaleFactorChanged` (moving between monitors). Waits on the
+  Windows performance baseline above.
 - [ ] **Rain and thunderstorm.** Two more kinds: steady rain, and rain with
   occasional thunder (a noise bed plus sparse droplet transients; thunder as
   rare low-passed rumbles). Each sets its own readable TUI theme, as the

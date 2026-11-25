@@ -1,13 +1,13 @@
 //! The contract between the backend (the player daemon) and every frontend.
 //!
-//! One request per line on a Unix socket; every reply line is either `state <kind> <vol> <playing|muted>[ <error>]`
-//! or `err <message>`. After `watch`, the daemon also pushes a `state` line on every change.
+//! One request per line over the daemon's endpoint (a Unix socket, or a named pipe on Windows: see `platform::ipc`);
+//! every reply line is either `state <kind> <vol> <playing|muted>[ <error>]` or `err <message>`. After `watch`, the
+//! daemon also pushes a `state` line on every change.
 
 use std::fmt;
-use std::fs;
-use std::io;
-use std::os::unix::fs::{DirBuilderExt, MetadataExt};
 use std::path::PathBuf;
+
+use crate::platform::{self, ipc::Endpoint};
 
 pub use noiseman_core::Kind;
 
@@ -112,28 +112,15 @@ impl fmt::Display for State {
     }
 }
 
-/// `$XDG_RUNTIME_DIR` (per-user, mode 0700), else a 0700 `noiseman-<uid>` dir in the temp dir.
+/// The per-user private directory for the lock file and the daemon log.
 pub fn runtime_dir() -> Result<PathBuf, String> {
-    if let Some(dir) = std::env::var_os("XDG_RUNTIME_DIR") {
-        return Ok(PathBuf::from(dir));
-    }
-    // SAFETY: getuid cannot fail and touches no memory.
-    let uid = unsafe { libc::getuid() };
-    let dir = std::env::temp_dir().join(format!("noiseman-{uid}"));
-    match fs::DirBuilder::new().mode(0o700).create(&dir) {
-        Ok(()) => {}
-        Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {}
-        Err(e) => return Err(format!("cannot create {}: {e}", dir.display())),
-    }
-    let meta = fs::symlink_metadata(&dir).map_err(|e| format!("cannot stat {}: {e}", dir.display()))?;
-    if !meta.is_dir() || meta.uid() != uid || meta.mode() & 0o077 != 0 {
-        return Err(format!("{} is not a private directory owned by uid {uid}", dir.display()));
-    }
-    Ok(dir)
+    platform::runtime_dir()
 }
 
-pub fn socket_path() -> Result<PathBuf, String> {
-    Ok(runtime_dir()?.join("noiseman.sock"))
+/// Where the daemon listens: one endpoint per runtime dir.
+pub fn endpoint() -> Result<Endpoint, String> {
+    let dir = runtime_dir()?;
+    Endpoint::in_dir(&dir).map_err(|e| format!("cannot name the endpoint in {}: {e}", dir.display()))
 }
 
 #[cfg(test)]

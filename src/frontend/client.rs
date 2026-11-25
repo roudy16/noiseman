@@ -1,11 +1,10 @@
 use std::fs::OpenOptions;
 use std::io::{self, BufRead, BufReader, Write};
-use std::os::unix::net::UnixStream;
-use std::os::unix::process::CommandExt;
 use std::process::{self, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::platform::{self, ipc::Stream};
 use crate::protocol::{self, Command, State};
 
 const START_TIMEOUT: Duration = Duration::from_secs(3);
@@ -17,23 +16,25 @@ pub struct Client {
     pub receiver: Receiver,
 }
 
-pub struct Sender(UnixStream);
+pub struct Sender(Stream);
 
-pub struct Receiver(BufReader<UnixStream>);
+pub struct Receiver(BufReader<Stream>);
 
 impl Client {
     /// Connects to the running daemon; with `autostart`, starts one first if none is running.
     pub fn connect(autostart: bool) -> Result<Client, String> {
-        let path = protocol::socket_path()?;
-        let stream = match UnixStream::connect(&path) {
+        let endpoint = protocol::endpoint()?;
+        let stream = match Stream::connect(&endpoint) {
             Ok(s) => s,
-            Err(_) if autostart => start_daemon()?,
             Err(e) if matches!(e.kind(), io::ErrorKind::NotFound | io::ErrorKind::ConnectionRefused) => {
-                return Err("not running".into());
+                if !autostart {
+                    return Err("not running".into());
+                }
+                start_daemon()?
             }
-            Err(e) => return Err(format!("cannot connect to {}: {e}", path.display())),
+            Err(e) => return Err(format!("cannot connect to {endpoint}: {e}")),
         };
-        let writer = stream.try_clone().map_err(|e| format!("cannot clone socket: {e}"))?;
+        let writer = stream.try_clone().map_err(|e| format!("cannot clone connection: {e}"))?;
         Ok(Client { sender: Sender(writer), receiver: Receiver(BufReader::new(stream)) })
     }
 
@@ -61,8 +62,8 @@ impl Receiver {
     }
 }
 
-/// Starts `noiseman daemon` in its own session (it outlives the terminal), logging to the runtime dir.
-fn start_daemon() -> Result<UnixStream, String> {
+/// Starts `noiseman daemon` detached (it outlives the terminal), logging to the runtime dir.
+fn start_daemon() -> Result<Stream, String> {
     let exe = std::env::current_exe().map_err(|e| format!("cannot find own executable: {e}"))?;
     let log_path = protocol::runtime_dir()?.join("noiseman.log");
     let log = OpenOptions::new()
@@ -72,18 +73,14 @@ fn start_daemon() -> Result<UnixStream, String> {
         .map_err(|e| format!("cannot open {}: {e}", log_path.display()))?;
     let mut cmd = process::Command::new(exe);
     cmd.arg("daemon").stdin(Stdio::null()).stdout(Stdio::null()).stderr(log);
-    // SAFETY: setsid is async-signal-safe and touches no memory.
-    unsafe {
-        cmd.pre_exec(|| if libc::setsid() == -1 { Err(io::Error::last_os_error()) } else { Ok(()) });
-    }
-    let mut child = cmd.spawn().map_err(|e| format!("cannot start daemon: {e}"))?;
+    let mut child = platform::spawn_detached(&mut cmd).map_err(|e| format!("cannot start daemon: {e}"))?;
     // Reaped on a thread so it never lingers as a zombie under a long-running frontend.
     thread::spawn(move || child.wait());
-    let path = protocol::socket_path()?;
+    let endpoint = protocol::endpoint()?;
     let until = Instant::now() + START_TIMEOUT;
     // If another frontend started a daemon at the same moment, ours exits and theirs answers here.
     loop {
-        match UnixStream::connect(&path) {
+        match Stream::connect(&endpoint) {
             Ok(s) => return Ok(s),
             Err(e) if Instant::now() >= until => {
                 return Err(format!("daemon did not start ({e}); see {}", log_path.display()));

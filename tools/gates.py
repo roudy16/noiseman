@@ -3,13 +3,12 @@
 
 Expects release builds (`just gates` makes them). The runtime gates start a private daemon (own runtime dir) with
 `--muted`, then `vol 0` + `unmute`: a real PulseAudio stream at zero gain, so it costs what playing costs, silently.
-Without a PulseAudio server, or if the daemon cannot start a stream, they are reported as SKIP. Exit status 1 if any
-gate fails.
+Without a PulseAudio server, or if the daemon cannot start a stream, they are reported as SKIP. They read /proc, so
+they run on Linux only; elsewhere they are SKIP too, and the size and DSP gates still run. Exit status 1 if any gate
+fails.
 """
 
-import fcntl
 import os
-import pty
 import re
 import shutil
 import socket
@@ -17,15 +16,15 @@ import struct
 import subprocess
 import sys
 import tempfile
-import termios
 import time
 import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-BIN = ROOT / "target/release/noiseman"
+EXE = ".exe" if sys.platform == "win32" else ""
+BIN = ROOT / f"target/release/noiseman{EXE}"
 WEB = ROOT / "target/web"
-PROFILE = ROOT / "target/release/examples/noise_profile"
+PROFILE = ROOT / f"target/release/examples/noise_profile{EXE}"
 
 results: list[tuple[str, float, float, str]] = []
 
@@ -89,6 +88,14 @@ def dsp(limits: dict) -> None:
 
 
 def runtime(limits: dict) -> None:
+    if sys.platform != "linux":
+        print(f"SKIP runtime gates: they measure through /proc (Linux only), not on {sys.platform}")
+        return
+    # Unix-only modules, imported here so the size and DSP gates run everywhere.
+    import fcntl
+    import pty
+    import termios
+
     real_runtime = os.environ.get("XDG_RUNTIME_DIR", "")
     pulse = os.environ.get("PULSE_SERVER") or f"unix:{real_runtime}/pulse/native"
     if not Path(pulse.removeprefix("unix:")).is_socket():

@@ -1,5 +1,6 @@
 mod backend;
 mod frontend;
+mod platform;
 mod protocol;
 
 use std::process::ExitCode;

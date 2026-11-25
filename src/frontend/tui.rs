@@ -14,6 +14,7 @@ use crossterm::terminal::{
 use crossterm::{execute, queue};
 
 use super::client::{Client, Sender};
+use crate::platform;
 use crate::protocol::{Command, Kind, State};
 
 enum Ui {
@@ -186,7 +187,8 @@ impl Palette {
     fn detect() -> Palette {
         let var = |name| std::env::var(name).unwrap_or_default();
         let (colorterm, term) = (var("COLORTERM"), var("TERM"));
-        let truecolor = colorterm.contains("truecolor") || colorterm.contains("24bit");
+        let truecolor =
+            colorterm.contains("truecolor") || colorterm.contains("24bit") || platform::terminal_truecolor();
         let depth = match (truecolor, term.contains("256")) {
             (true, _) => u16::MAX,
             (false, true) => 256,
