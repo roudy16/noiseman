@@ -6,7 +6,9 @@ socket. An optional window with a system-tray icon is available with the `gui`
 feature. The sound itself lives in a dependency-free core crate (`crates/core`) that also compiles to
 WebAssembly for a browser demo (`web/`). See `DESIGN.md`.
 
-**Try it in the browser:** https://roudy16.github.io/noiseman/
+**Try it in the browser:** https://roudy16.github.io/noiseman/ · **How it works:**
+https://roudy16.github.io/noiseman/architecture/ (diagrams of the daemon, the sound core and the web demo;
+source `docs/architecture.html`)
 
 ## Usage
 
@@ -18,7 +20,8 @@ WebAssembly for a browser demo (`web/`). See `DESIGN.md`.
 - `noiseman daemon [--muted]`: run the player in the foreground (`--muted`
   starts it silent, e.g. at login). Commands that should
   make sound start it automatically, detached from the terminal, logging to
-  `$XDG_RUNTIME_DIR/noiseman.log`.
+  `noiseman.log` in `$XDG_RUNTIME_DIR` (or a private `noiseman-<uid>` directory in
+  the temp dir when it is unset).
 - `noiseman gui` (built with `--features gui`): the window. On Linux with a
   system tray (StatusNotifierItem, e.g. COSMIC or KDE), closing the window
   hides it to the tray; without a tray, closing it stops the player.
@@ -40,6 +43,7 @@ All dev workflows go through `just` (run `just` alone to list recipes):
 - `just gates` — size, CPU and memory limits from `gates.toml` (about 2 s; needs PulseAudio for the runtime part)
 - `just web` / `just web-serve` — build / serve the browser demo
 - `just run [args...]` — run the binary
+- `just profile [kind] [secs]` — profile the noise DSP (perf, samply, inferno flamegraph) into `profiles/dsp-<kind>.*`
 - `just install` — install to `~/.local/bin` (with `nsm` as a short alias), plus hicolor icons (`~/.local/share/icons/hicolor/*/apps/noiseman.*`) and desktop entry (`~/.local/share/applications/noiseman.desktop`, opens in a terminal)
 - `just clean` — remove build artifacts
 
@@ -55,15 +59,15 @@ Actions; free for public repositories).
 
 MIT, see `LICENSE`, for everything except `vendor/`.
 
-`vendor/` holds two third-party crates under their own licenses, each with a small change (described at the top of
-the changed file and in `AGENTS.md`):
+`vendor/` holds two third-party crates under their own licenses, each with small changes (described at the top of
+each changed file and in `AGENTS.md`):
 
 - `vendor/cpal`: cpal 0.18.2, Apache License 2.0 (`vendor/cpal/LICENSE`)
 - `vendor/pulseaudio`: pulseaudio 0.3.2 by Colin Marc, MIT (`vendor/pulseaudio/LICENSE.md`)
 
 All other dependencies come from crates.io under permissive licenses (MIT, Apache-2.0, BSD-2/3-Clause, ISC, Zlib,
-Unlicense); `cargo tree -f '{p} {l}'` lists them. The web demo's WebAssembly is built only from `crates/core` and
-`web/`, with no third-party crates.
+Unlicense, Unicode-3.0); `cargo tree --features gui --target all -e normal,build -f '{p} {l}'` lists them. The web
+demo's WebAssembly is built only from `crates/core` and `web/`, with no third-party crates.
 
 ## TODO
 

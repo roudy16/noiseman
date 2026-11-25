@@ -58,6 +58,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 kbd { color: var(--ink); font: inherit; font-weight: bold; }
 .keys span { white-space: nowrap; margin: 0 .4rem; }
 .about { font-size: .8rem; text-align: center; }
+.about a { color: var(--fg); }
 @media (max-width: 30rem) {
   body { padding: 1rem; }
   .card { padding: 1.25rem; }

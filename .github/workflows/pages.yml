@@ -5,7 +5,7 @@ name: Pages
 on:
   push:
     branches: [main]
-    paths: [crates/core/**, web/**, assets/noiseman.svg, Cargo.toml, Cargo.lock, justfile, .github/workflows/pages.yml]
+    paths: [crates/core/**, web/**, docs/**, assets/noiseman.svg, Cargo.toml, Cargo.lock, justfile, .github/workflows/pages.yml]
   workflow_dispatch:
 
 permissions:

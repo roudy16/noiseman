@@ -11,9 +11,9 @@ Noise generator: a dependency-free sound core (`crates/core`), a headless player
 Cargo workspace: the root package `noiseman` (the binary), `crates/core` and `web`.
 
 - `crates/core/` (`noiseman-core`; no dependencies, no I/O, no allocation)
-  - `lib.rs`: `Kind` (labels, `from_u8`, `parse`), `gain(vol)` (square law)
-  - `noise.rs`: `Noise` generators, the one level/bounds test
-  - `voice.rs`: `Voice::new(rate, seed, kind)` and `step(kind, gain)`: 10 ms gain fade, kind change via silence; its test
+  - `src/lib.rs`: `Kind` (labels, `from_u8`, `parse`), `gain(vol)` (square law)
+  - `src/noise.rs`: `Noise` generators, the one level/bounds test
+  - `src/voice.rs`: `Voice::new(rate, seed, kind)` and `step(kind, gain)`: 10 ms gain fade, kind change via silence; its test
   - `examples/noise_profile.rs`: DSP benchmark for `just profile`
 - `src/main.rs`: `daemon [--muted]` runs `backend::serve`; everything else goes to `frontend::run`
 - `src/protocol.rs`: the only contract between the halves: `Kind` (re-exported from core), `Command`, `State`, their line encoding, socket path, round-trip test
@@ -40,16 +40,17 @@ Cargo workspace: the root package `noiseman` (the binary), `crates/core` and `we
 - One daemon per user: `noiseman.lock` (`File::try_lock`) is held for the daemon's life, so a socket file found while holding it is stale and removed.
 - Error callback (not RT) logs, and on `DeviceNotAvailable | StreamInvalidated` sends `AudioLost` to the player thread, which restarts the stream.
 - Default state: brown, volume 50, playing. Quit mutes and waits for the fade before exiting.
-- cpal uses the `pulseaudio` backend; it reports I32 as the default format, so keep the `SampleFormat::I32` arm.
+- cpal uses the `pulseaudio` backend; the default format is the sink's own (I32 on the PipeWire pulse server here), so keep the `SampleFormat::I32` arm alongside the others.
 - `crates/core` stays dependency-free and I/O-free; both the daemon and the web demo get their sound only from it, so they sound the same.
+- `docs/architecture.html` is the illustrated explainer, published at `/architecture/` by `just web`; update its diagrams and numbers when threads, states, the protocol, the fade or the gate baselines change.
 - Web: the worklet does no allocation per block (cached `Float32Array` view); the page suspends the AudioContext after a pause; the wasm has no heap. Keep the module small (check its size after `just web`).
 - Every noise type is normalised to about -18 dBFS RMS; the test enforces ±1.5 dB.
 - Release profile uses `panic = "abort"`; never let a panic reach the callback. The TUI restores the terminal from a panic hook.
 - GUI (Linux tray): closing the window hides to tray (drops window and surface); with no tray, closing quits and stops the player. Tray callbacks only `send_event`; zbus calls stay off the winit thread. ksni uses `blocking` + `tokio`.
 - Dependencies: noiseman-core, cpal, crossterm, libc; with `gui`: winit, softbuffer, font8x8, ksni (Linux). No GPU, no toolkit.
 - Unix only (the socket); Windows would need another transport.
-- `just deps` (`tools/deps.py`, network) reports advisories for every locked crate (OSV, which mirrors RustSec) and drift of direct and vendored crates from crates.io's latest stable (via the sparse index); it fails only on a vulnerability. Run it before upgrading or vendoring. Known informational advisories (2026-11-24): unmaintained `ttf-parser` (winit's decorations) and `zbus_names`/`zvariant`/`zvariant_derive` (ksni), all `gui`-only, no fix upstream yet.
-- Licenses: our crates are MIT (`LICENSE`, `license = "MIT"`). New dependencies must be permissive (no GPL/LGPL/AGPL/MPL); check with `cargo tree -f '{p} {l}'`.
-- Vendored crates, wired in via `[patch.crates-io]`; re-apply or drop each change when upgrading. Keep each crate's LICENSE file, and the "Modified by noiseman" header at the top of every changed file (Apache-2.0 §4(b) for cpal):
-  - `vendor/pulseaudio`: pulseaudio 0.3.2 (pruned to `src/`, `Cargo.toml`, `LICENSE.md`) with two changes in `client/reactor.rs`: `Reactor::recv` reads in 64 KiB chunks instead of zero-filling 1 MiB per read, and `handle_command` removes a stream on `PlaybackStreamKilled` (upstream ignored it, so a server-killed stream was never reported and dropping it hung).
-  - `vendor/cpal`: cpal 0.18.2 (pruned to `src/`, `build.rs`, `Cargo.toml`, `LICENSE`) with one change in `host/pulseaudio/stream.rs`: the playback latency thread no longer wakes per write or every 100 ms, only on play/pause/drop, so `OutputCallbackInfo` timestamps go stale (noiseman ignores them).
+- `just deps` (`tools/deps.py`, network) reports advisories for every locked crate (OSV, which mirrors RustSec) and drift of direct dependencies and vendored crates from crates.io's latest stable (via the sparse index); it fails only on a vulnerability. Run it before upgrading or vendoring. Known informational advisories (2026-11-24): unmaintained `ttf-parser` (winit's decorations) and `zbus_names`/`zvariant`/`zvariant_derive` (ksni), all `gui`-only, no fix upstream yet.
+- Licenses: our crates are MIT (`LICENSE`, `license = "MIT"`). New dependencies must be permissive (no GPL/LGPL/AGPL/MPL); check with `cargo tree --features gui --target all -e normal,build -f '{p} {l}'`.
+- Vendored crates, wired in via `[patch.crates-io]`; re-apply or drop each change when upgrading. Keep each crate's LICENSE file, and the "Modified by noiseman" header at the top of every changed file, `Cargo.toml` included (Apache-2.0 §4(b) for cpal):
+  - `vendor/pulseaudio`: pulseaudio 0.3.2 (pruned to `src/`, `Cargo.toml`, `LICENSE.md`; `Cargo.toml` stripped of readme, examples and dev-dependencies so the pruned crate builds) with two code changes in `client/reactor.rs`: `Reactor::recv` reads in 64 KiB chunks instead of zero-filling 1 MiB per read, and `handle_command` removes a stream on `PlaybackStreamKilled` (upstream ignored it, so a server-killed stream was never reported and dropping it hung).
+  - `vendor/cpal`: cpal 0.18.2 (pruned to `src/`, `build.rs`, `Cargo.toml`, `LICENSE`; `Cargo.toml` stripped likewise) with one code change in `host/pulseaudio/stream.rs`: the playback latency thread no longer wakes per write or every 100 ms, only on play/pause/drop, so `OutputCallbackInfo` timestamps go stale (noiseman ignores them).

@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="How noiseman's daemon, frontends, sound core and web demo fit together.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>:root{padding-block:env(safe-area-inset-top,0px) env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}</style>
+<title>noiseman architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; each section is a short paragraph and one figure that shows the mechanism. */
+:root {
+  --bg: #f6f4f1; --panel: #ffffff; --fg: #1f1c19; --muted: #6a625a; --line: #d9d2ca;
+  --accent: #a8692a; --accent-soft: #f1e3d3;
+  --k-white: #6f7a8c; --k-pink: #b8506f; --k-brown: #a8692a; --k-blue: #2f6fb6; --k-violet: #7a54b8;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #171513; --panel: #201d1a; --fg: #ece6df; --muted: #a39a90; --line: #3a3531;
+  --accent: #d08f4a; --accent-soft: #3a2a1b;
+  --k-white: #8c96a8; --k-pink: #d4708f; --k-brown: #d08f4a; --k-blue: #4f8fd6; --k-violet: #9b74d6;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #171513; --panel: #201d1a; --fg: #ece6df; --muted: #a39a90; --line: #3a3531;
+  --accent: #d08f4a; --accent-soft: #3a2a1b;
+  --k-white: #8c96a8; --k-pink: #d4708f; --k-brown: #d08f4a; --k-blue: #4f8fd6; --k-violet: #9b74d6;
+  color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font: 16px/1.6 var(--body); }
+main { max-width: 860px; margin: 0 auto; padding-block: 48px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 56px; }
+header { display: grid; gap: 14px; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 700 clamp(36px, 7vw, 56px)/1.02 var(--display); margin: 0; letter-spacing: -.02em; text-wrap: balance; }
+h2 { font: 600 26px/1.15 var(--display); margin: 0; text-wrap: balance; }
+p { margin: 0; max-width: 66ch; }
+.lede { font-size: 18px; color: var(--muted); }
+section { display: grid; gap: 18px; min-width: 0; }
+code { font: 14px var(--mono); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+
+.spectrum { display: flex; height: 8px; border-radius: 4px; overflow: hidden; max-width: 320px; }
+.spectrum span { flex: 1; }
+
+figure { margin: 0; display: grid; gap: 10px; min-width: 0; }
+.plate { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.plate svg { display: block; width: 100%; min-width: 620px; height: auto; color: var(--fg); }
+figcaption { font-size: 14px; color: var(--muted); max-width: 70ch; }
+
+/* SVG parts, all from tokens */
+svg text { font-family: var(--body); font-size: 13px; fill: currentColor; }
+svg .sub { font-size: 11.5px; fill: var(--muted); }
+svg .lbl { font-family: var(--mono); font-size: 11.5px; fill: var(--muted); }
+svg .box { fill: var(--panel); stroke: currentColor; stroke-width: 1.2; }
+svg .hot { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.6; }
+svg .zone { fill: none; stroke: var(--line); stroke-width: 1.2; stroke-dasharray: 5 4; }
+svg .zlbl { font-family: var(--mono); font-size: 11px; fill: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+svg .edge { fill: none; stroke: currentColor; stroke-width: 1.3; }
+svg .edge.dash { stroke-dasharray: 5 4; }
+svg .edge.hotline { stroke: var(--accent); }
+svg .grid { stroke: var(--line); stroke-width: 1; }
+svg .head { fill: currentColor; }
+svg .headhot { fill: var(--accent); }
+
+pre { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px;
+  overflow-x: auto; font: 14px/1.7 var(--mono); }
+pre .c { color: var(--muted); }
+pre .in { color: var(--accent); }
+
+.kinds { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.kind { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--panel); display: grid; gap: 4px; }
+.kind b { font: 600 15px var(--display); display: flex; align-items: center; gap: 8px; }
+.kind b::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.kind span { font-size: 13px; color: var(--muted); line-height: 1.45; }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+th { font: 500 11.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+td.n { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 13px; }
+th.n { text-align: right; }
+a { color: var(--accent); }
+</style>
+
+</head>
+<body>
+<main>
+<header>
+  <div class="eyebrow">Architecture · noiseman</div>
+  <h1>How noiseman makes noise</h1>
+  <p class="lede">A small background daemon owns the audio. The CLI, TUI and optional GUI control it by sending text lines over a Unix socket. The noise itself comes from one dependency-free Rust crate that also compiles to a 6 KB WebAssembly module for the browser demo.</p>
+  <div class="spectrum" aria-hidden="true"><span style="background:var(--k-white)"></span><span style="background:var(--k-pink)"></span><span style="background:var(--k-brown)"></span><span style="background:var(--k-blue)"></span><span style="background:var(--k-violet)"></span></div>
+</header>
+
+<section>
+  <h2>The whole system</h2>
+  <p>noiseman has two halves and one shared core. Frontends never import backend code: everything they know about the player arrives as <code>state</code> or <code>err</code> lines on the socket. Both the daemon and the web demo generate samples from <code>noiseman-core</code>, so every noise kind sounds the same in both.</p>
+  <figure>
+    <div class="plate">
+      <svg viewBox="0 0 780 330" role="img" aria-label="Frontends talk to the daemon over a Unix socket; the daemon's audio callback and the browser worklet both use noiseman-core.">
+        <defs>
+          <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="head"/></marker>
+          <marker id="a1h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="headhot"/></marker>
+        </defs>
+        <rect class="zone" x="10" y="20" width="160" height="200" rx="8"/>
+        <text class="zlbl" x="22" y="40">frontends</text>
+        <rect class="box" x="30" y="56" width="120" height="36" rx="6"/><text x="90" y="79" text-anchor="middle">CLI</text>
+        <rect class="box" x="30" y="106" width="120" height="36" rx="6"/><text x="90" y="129" text-anchor="middle">TUI</text>
+        <rect class="box" x="30" y="156" width="120" height="36" rx="6"/><text x="90" y="179" text-anchor="middle">GUI + tray</text>
+
+        <path class="edge" d="M150,74 L240,112" marker-start="url(#a1)" marker-end="url(#a1)"/>
+        <path class="edge" d="M150,124 L240,124" marker-start="url(#a1)" marker-end="url(#a1)"/>
+        <path class="edge" d="M150,174 L240,136" marker-start="url(#a1)" marker-end="url(#a1)"/>
+
+        <rect class="box" x="240" y="96" width="150" height="56" rx="6"/>
+        <text x="315" y="119" text-anchor="middle">noiseman.sock</text>
+        <text class="sub" x="315" y="138" text-anchor="middle">one text line per message</text>
+        <text class="lbl" x="315" y="176" text-anchor="middle">requests in, state lines out</text>
+
+        <rect class="zone" x="450" y="20" width="180" height="200" rx="8"/>
+        <text class="zlbl" x="462" y="40">daemon (backend)</text>
+        <rect class="hot" x="470" y="58" width="140" height="42" rx="6"/><text x="540" y="84" text-anchor="middle">player thread</text>
+        <rect class="box" x="470" y="156" width="140" height="42" rx="6"/><text x="540" y="182" text-anchor="middle">audio callback</text>
+        <path class="edge hotline" d="M540,100 L540,154" marker-end="url(#a1h)"/>
+        <text class="lbl" x="548" y="132">atomics</text>
+        <path class="edge" d="M392,117 L468,84" marker-start="url(#a1)" marker-end="url(#a1)"/>
+        <text class="lbl" x="415" y="84" text-anchor="middle">cmd / state</text>
+
+        <rect class="box" x="676" y="152" width="96" height="50" rx="6"/>
+        <text x="724" y="174" text-anchor="middle">audio output</text>
+        <text class="sub" x="724" y="191" text-anchor="middle">via cpal</text>
+        <path class="edge" d="M610,177 L674,177" marker-end="url(#a1)"/>
+        <text class="lbl" x="642" y="169" text-anchor="middle">samples</text>
+
+        <rect class="box" x="450" y="262" width="180" height="54" rx="6"/>
+        <text x="540" y="284" text-anchor="middle">noiseman-core</text>
+        <text class="sub" x="540" y="303" text-anchor="middle">Noise · Voice · gain</text>
+        <path class="edge" d="M540,262 L540,200" marker-end="url(#a1)"/>
+        <text class="lbl" x="548" y="244">one Voice per stream</text>
+
+        <rect class="box" x="676" y="262" width="96" height="54" rx="6"/>
+        <text x="724" y="284" text-anchor="middle">browser</text>
+        <text class="sub" x="724" y="303" text-anchor="middle">wasm worklet</text>
+        <path class="edge" d="M630,289 L674,289" marker-end="url(#a1)"/>
+        <text class="lbl" x="652" y="281" text-anchor="middle">wasm32</text>
+      </svg>
+    </div>
+    <figcaption>The TUI, GUI and most CLI commands start the daemon if none is running (<code>setsid</code>, so it outlives the terminal); <code>status</code>, <code>mute</code> and <code>stop</code> never do. Leaving the CLI or TUI keeps the noise playing; in the GUI, closing the window hides it to the system tray (or stops the daemon if no tray is available).</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>Inside the daemon</h2>
+  <p>One player thread owns all playback state and handles messages one at a time from a single channel. Per-client socket readers parse incoming lines (answering syntax errors directly) and forward valid commands to that channel; the audio error path posts <code>AudioLost</code> to the same channel. The audio callback never takes a lock: it reads the requested kind and gain from two atomics once per buffer and renders every frame with its own <code>Voice</code>.</p>
+  <figure>
+    <div class="plate">
+      <svg viewBox="0 0 780 380" role="img" aria-label="Clients feed per-client reader threads, which post commands to one mpsc channel read by the player thread. The player stores kind and gain in atomics, which the audio callback loads once per buffer. Lost audio is posted back to the same channel.">
+        <defs>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="head"/></marker>
+          <marker id="a2h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="headhot"/></marker>
+        </defs>
+        <path class="edge hotline" d="M665,70 L665,26 L75,26 L75,38" marker-end="url(#a2h)"/>
+        <text class="lbl" x="370" y="18" text-anchor="middle">state reply, and a push to every watcher on change (200 ms write timeout)</text>
+
+        <rect class="box" x="20" y="40" width="110" height="36" rx="6"/><text x="75" y="63" text-anchor="middle">client 1</text>
+        <rect class="box" x="20" y="120" width="110" height="36" rx="6"/><text x="75" y="143" text-anchor="middle">client 2</text>
+
+        <rect class="box" x="190" y="40" width="140" height="36" rx="6"/><text x="260" y="63" text-anchor="middle">reader thread</text>
+        <rect class="box" x="190" y="120" width="140" height="36" rx="6"/><text x="260" y="143" text-anchor="middle">reader thread</text>
+        <rect class="box" x="190" y="220" width="140" height="36" rx="6"/><text x="260" y="243" text-anchor="middle">accept thread</text>
+
+        <path class="edge" d="M130,58 L188,58" marker-end="url(#a2)"/><text class="lbl" x="159" y="51" text-anchor="middle">line</text>
+        <path class="edge" d="M130,138 L188,138" marker-end="url(#a2)"/><text class="lbl" x="159" y="131" text-anchor="middle">line</text>
+        <path class="edge dash" d="M130,238 L188,238" marker-end="url(#a2)"/><text class="lbl" x="159" y="231" text-anchor="middle">connect</text>
+        <path class="edge dash" d="M260,220 L260,158" marker-end="url(#a2)"/><text class="lbl" x="268" y="194">spawns one per client</text>
+
+        <rect class="box" x="390" y="80" width="120" height="60" rx="6"/>
+        <text x="450" y="106" text-anchor="middle">mpsc channel</text>
+        <text class="sub" x="450" y="124" text-anchor="middle">Msg</text>
+        <path class="edge" d="M330,58 L388,96" marker-end="url(#a2)"/>
+        <path class="edge" d="M330,138 L388,124" marker-end="url(#a2)"/>
+        <text class="lbl" x="450" y="72" text-anchor="middle">Request(cmd)</text>
+
+        <rect class="hot" x="570" y="70" width="190" height="80" rx="6"/>
+        <text x="665" y="96" text-anchor="middle">player thread</text>
+        <text class="sub" x="665" y="116" text-anchor="middle">blocks in recv()</text>
+        <text class="sub" x="665" y="134" text-anchor="middle">apply · reply · push</text>
+        <path class="edge" d="M510,110 L568,110" marker-end="url(#a2)"/>
+
+        <rect class="box" x="570" y="200" width="190" height="40" rx="6"/>
+        <text x="665" y="225" text-anchor="middle">KIND · GAIN atomics</text>
+        <path class="edge hotline" d="M665,150 L665,198" marker-end="url(#a2h)"/>
+        <text class="lbl" x="673" y="179">store</text>
+
+        <rect class="box" x="570" y="290" width="190" height="60" rx="6"/>
+        <text x="665" y="314" text-anchor="middle">audio callback</text>
+        <text class="sub" x="665" y="333" text-anchor="middle">cpal thread · Voice::step per frame</text>
+        <path class="edge" d="M665,240 L665,288" marker-end="url(#a2)"/>
+        <text class="lbl" x="673" y="269">load once per buffer</text>
+
+        <path class="edge dash" d="M570,320 L450,320 L450,142" marker-end="url(#a2)"/>
+        <text class="lbl" x="510" y="312" text-anchor="middle">AudioLost</text>
+        <text class="sub" x="510" y="340" text-anchor="middle">error callback</text>
+      </svg>
+    </div>
+    <figcaption>While playing with one client connected, the daemon runs six threads: main (the player), accept, one client reader, and three audio threads owned by cpal and PulseAudio. If a write times out after 200 ms, that client is dropped so it cannot stall the player.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>Playing, fading, muted</h2>
+  <p>Muting does not cut the stream at once. The target gain drops to zero and fades smoothly (τ = 10 ms, reaching silence within 100 ms), then the player waits for three device buffers to drain before dropping the stream. Once muted with no clients connected, the daemon is completely idle: two threads (main and accept) and zero wakeups.</p>
+  <figure>
+    <div class="plate">
+      <svg viewBox="0 0 780 240" role="img" aria-label="Three states: playing, fading out, muted. Mute moves playing to fading; after 100 ms plus three device buffers fading becomes muted; unmute returns to playing from either.">
+        <defs>
+          <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="head"/></marker>
+          <marker id="a3h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="headhot"/></marker>
+        </defs>
+        <path class="edge" d="M125,24 L125,88" marker-end="url(#a3)"/><text class="lbl" x="133" y="58">noiseman daemon</text>
+        <path class="edge" d="M655,24 L655,88" marker-end="url(#a3)"/><text class="lbl" x="663" y="58">daemon --muted</text>
+
+        <rect class="box" x="40" y="90" width="170" height="60" rx="30"/>
+        <text x="125" y="115" text-anchor="middle">Playing</text>
+        <text class="sub" x="125" y="134" text-anchor="middle">stream open</text>
+
+        <rect class="hot" x="305" y="90" width="170" height="60" rx="30"/>
+        <text x="390" y="115" text-anchor="middle">Fading out</text>
+        <text class="sub" x="390" y="134" text-anchor="middle">gain 0 · recv_timeout</text>
+
+        <rect class="box" x="570" y="90" width="170" height="60" rx="30"/>
+        <text x="655" y="115" text-anchor="middle">Muted</text>
+        <text class="sub" x="655" y="134" text-anchor="middle">no stream · 0 wakeups</text>
+
+        <path class="edge" d="M210,108 L303,108" marker-end="url(#a3)"/><text class="lbl" x="257" y="100" text-anchor="middle">mute</text>
+        <path class="edge hotline" d="M475,108 L568,108" marker-end="url(#a3h)"/><text class="lbl" x="522" y="100" text-anchor="middle">deadline</text>
+        <text class="sub" x="522" y="80" text-anchor="middle">100 ms + 3 buffers</text>
+        <path class="edge" d="M305,134 L212,134" marker-end="url(#a3)"/><text class="lbl" x="257" y="152" text-anchor="middle">unmute</text>
+        <path class="edge" d="M655,150 L655,200 L125,200 L125,152" marker-end="url(#a3)"/>
+        <text class="lbl" x="390" y="218" text-anchor="middle">unmute: open a new stream</text>
+      </svg>
+    </div>
+    <figcaption>The player thread uses <code>recv_timeout</code> only while a fade is pending; otherwise it blocks in <code>recv</code>. Quitting mutes first and waits out the same deadline, so the sound never ends with a click. If the device goes away while playing, the player opens a new stream.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>The sound core</h2>
+  <p><code>noiseman-core</code> has no dependencies, does no I/O and never allocates. <code>Noise</code> turns a xorshift64 generator into five colours of noise, each scaled to about −18 dBFS RMS. <code>gain(vol)</code> maps volume 0–100 on a square law, and <code>Voice</code> smooths every gain and kind change with a one-pole fade (τ = 10 ms).</p>
+  <div class="kinds">
+    <div class="kind" style="--c:var(--k-white)"><b>White</b><span>Flat spectrum: the raw generator.</span></div>
+    <div class="kind" style="--c:var(--k-pink)"><b>Pink</b><span>−3 dB/octave, Paul Kellet's refined filter.</span></div>
+    <div class="kind" style="--c:var(--k-brown)"><b>Brown</b><span>−6 dB/octave: a leaky integrator with a 15.3 Hz corner.</span></div>
+    <div class="kind" style="--c:var(--k-blue)"><b>Blue</b><span>+3 dB/octave: pink, differentiated.</span></div>
+    <div class="kind" style="--c:var(--k-violet)"><b>Violet</b><span>+6 dB/octave: white, differentiated.</span></div>
+  </div>
+  <figure>
+    <div class="plate">
+      <svg viewBox="0 0 760 220" role="img" aria-label="Level over time for a kind change from white to brown: level decays from 1 for about 92 ms until it is below 1e-4, the generator switches, then level rises back to 1.">
+        <line class="grid" x1="60" y1="40" x2="700" y2="40"/>
+        <line class="grid" x1="60" y1="170" x2="700" y2="170"/>
+        <line class="grid" x1="60" y1="40" x2="60" y2="176"/>
+        <line class="grid" x1="220" y1="170" x2="220" y2="176"/>
+        <line class="grid" x1="380" y1="170" x2="380" y2="176"/>
+        <line class="grid" x1="540" y1="170" x2="540" y2="176"/>
+        <line class="grid" x1="700" y1="170" x2="700" y2="176"/>
+        <text class="lbl" x="60" y="192" text-anchor="middle">0</text>
+        <text class="lbl" x="220" y="192" text-anchor="middle">40</text>
+        <text class="lbl" x="380" y="192" text-anchor="middle">80</text>
+        <text class="lbl" x="540" y="192" text-anchor="middle">120</text>
+        <text class="lbl" x="700" y="192" text-anchor="middle">160 ms</text>
+        <text class="lbl" x="50" y="44" text-anchor="end">1</text>
+        <text class="lbl" x="50" y="174" text-anchor="end">0</text>
+        <text class="sub" x="20" y="110" transform="rotate(-90 20 110)" text-anchor="middle">level</text>
+
+        <line class="edge dash" x1="100" y1="30" x2="100" y2="170"/>
+        <text class="lbl" x="106" y="30">kind brown requested</text>
+        <line class="edge dash" x1="468" y1="30" x2="468" y2="170"/>
+        <text class="lbl" x="474" y="30">level &lt; 10⁻⁴: switch generator</text>
+
+        <polyline fill="none" stroke="var(--k-white)" stroke-width="2.4" points="60,40 64,40 68,40 72,40 76,40 80,40 84,40 88,40 92,40 96,40 100,40 104,52.4 108,63.6 112,73.7 116,82.9 120,91.2 124,98.7 128,105.4 132,111.6 136,117.1 140,122.2 144,126.7 148,130.8 152,134.6 156,137.9 160,141 164,143.8 168,146.3 172,148.5 176,150.6 180,152.4 184,154.1 188,155.6 192,157 196,158.2 200,159.3 204,160.3 208,161.3 212,162.1 216,162.8 220,163.5 224,164.1 228,164.7 232,165.2 236,165.7 240,166.1 244,166.4 248,166.8 252,167.1 256,167.4 260,167.6 264,167.8 268,168.1 272,168.2 276,168.4 280,168.6 284,168.7 288,168.8 292,168.9 296,169 300,169.1 304,169.2 308,169.3 312,169.4 316,169.4 320,169.5 324,169.5 328,169.6 332,169.6 336,169.6 340,169.7 344,169.7 348,169.7 352,169.8 356,169.8 360,169.8 368,169.8 376,169.9 400,169.9 416,170 468,170"/>
+        <polyline fill="none" stroke="var(--k-brown)" stroke-width="2.4" points="468,170 472,158.8 476,147.5 480,137.3 484,128 488,119.7 492,112.1 496,105.2 500,99 504,93.4 508,88.3 512,83.7 516,79.6 520,75.8 524,72.4 528,69.3 532,66.5 536,64 540,61.7 544,59.6 548,57.8 552,56.1 556,54.6 560,53.2 564,51.9 568,50.8 572,49.8 576,48.8 580,48 584,47.2 588,46.5 592,45.9 596,45.4 600,44.8 604,44.4 608,44 612,43.6 616,43.2 620,42.9 624,42.7 628,42.4 632,42.2 636,42 640,41.8 644,41.6 648,41.5 652,41.3 656,41.2 660,41.1 664,41 668,40.9 672,40.8 676,40.7 680,40.7 684,40.6 688,40.5 692,40.5 696,40.4 700,40.4"/>
+        <text x="80" y="62" style="fill:var(--k-white)">white</text>
+        <text x="640" y="62" style="fill:var(--k-brown)">brown</text>
+      </svg>
+    </div>
+    <figcaption>A kind change at 48 kHz, computed from <code>Voice::step</code>. The old generator fades to silence (about 92 ms to reach 10⁻⁴) before the new one starts, so the two kinds never overlap and nothing clicks.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>The protocol</h2>
+  <p>One request per line, one reply per request. Every reply is either a <code>state</code> line or an <code>err</code> line. After <code>watch</code>, the daemon also pushes a state line whenever anything changes; that is how the TUI and GUI stay in sync with each other and with the CLI.</p>
+  <pre><span class="c"># → request          ← reply</span>
+<span class="in">status</span>               state brown 50 playing
+<span class="in">kind pink</span>            state pink 50 playing
+<span class="in">vol +5</span>               state pink 55 playing
+<span class="in">mute</span>                 state pink 55 muted
+<span class="in">vol loud</span>             err bad volume "loud"
+<span class="in">watch</span>                state pink 55 muted
+                     state pink 55 playing   <span class="c"># pushed when another client unmutes</span></pre>
+  <p>The other requests are <code>vol N</code>, <code>vol -N</code>, <code>unmute</code>, <code>toggle</code> and <code>quit</code>. An audio failure is appended to the state line as an error message, and the daemon reports itself muted.</p>
+</section>
+
+<section>
+  <h2>In the browser</h2>
+  <p>The web demo wraps <code>noiseman-core</code> in a raw WASM module with two exports (<code>synth_init</code> and <code>synth_render</code>) and no <code>wasm-bindgen</code>. The synth lives in static memory, so the module has no heap and stays near 6 KB. After setup, the page only sends the worklet two numbers: <code>kind</code> and <code>vol</code>.</p>
+  <figure>
+    <div class="plate">
+      <svg viewBox="0 0 780 250" role="img" aria-label="The page compiles noiseman.wasm and hands the module to an AudioWorklet. Controls post kind and volume to the worklet, which calls synth_render each block and copies from a cached view of wasm memory to the output.">
+        <defs>
+          <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="head"/></marker>
+          <marker id="a4h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="headhot"/></marker>
+        </defs>
+        <rect class="zone" x="10" y="20" width="200" height="210" rx="8"/>
+        <text class="zlbl" x="22" y="40">main thread</text>
+        <rect class="box" x="30" y="56" width="160" height="50" rx="6"/>
+        <text x="110" y="78" text-anchor="middle">app.js</text>
+        <text class="sub" x="110" y="96" text-anchor="middle">buttons · keys · storage</text>
+        <rect class="box" x="30" y="156" width="160" height="50" rx="6"/>
+        <text x="110" y="178" text-anchor="middle">noiseman.wasm</text>
+        <text class="sub" x="110" y="196" text-anchor="middle">WebAssembly.compile</text>
+        <path class="edge" d="M110,156 L110,108" marker-end="url(#a4)"/>
+        <text class="lbl" x="118" y="136">Module</text>
+
+        <rect class="zone" x="300" y="20" width="460" height="210" rx="8"/>
+        <text class="zlbl" x="312" y="40">audio thread (AudioWorkletGlobalScope)</text>
+        <rect class="hot" x="320" y="56" width="170" height="50" rx="6"/>
+        <text x="405" y="78" text-anchor="middle">worklet.js</text>
+        <text class="sub" x="405" y="96" text-anchor="middle">process() per block</text>
+        <path class="edge" d="M190,72 L318,72" marker-end="url(#a4)"/>
+        <text class="lbl" x="254" y="64" text-anchor="middle">{kind, vol}</text>
+        <path class="edge dash" d="M190,92 L318,92" marker-end="url(#a4)"/>
+        <text class="lbl" x="254" y="110" text-anchor="middle">module, seed, kind</text>
+
+        <rect class="box" x="570" y="56" width="170" height="50" rx="6"/>
+        <text x="655" y="78" text-anchor="middle">synth_render</text>
+        <text class="sub" x="655" y="96" text-anchor="middle">core Voice, 128 frames</text>
+        <path class="edge hotline" d="M490,72 L568,72" marker-end="url(#a4h)"/>
+        <text class="lbl" x="529" y="64" text-anchor="middle">call</text>
+
+        <rect class="box" x="570" y="156" width="170" height="50" rx="6"/>
+        <text x="655" y="178" text-anchor="middle">static buffer</text>
+        <text class="sub" x="655" y="196" text-anchor="middle">1024 × f32, no heap</text>
+        <path class="edge" d="M655,106 L655,154" marker-end="url(#a4)"/>
+        <text class="lbl" x="663" y="134">writes</text>
+
+        <rect class="box" x="320" y="156" width="170" height="50" rx="6"/>
+        <text x="405" y="178" text-anchor="middle">output</text>
+        <text class="sub" x="405" y="196" text-anchor="middle">mono, cached view</text>
+        <path class="edge" d="M570,181 L492,181" marker-end="url(#a4)"/>
+        <text class="lbl" x="531" y="173" text-anchor="middle">copy</text>
+      </svg>
+    </div>
+    <figcaption>Pause sends volume 0, lets the voice fade, and suspends the AudioContext 150 ms later, so a paused tab does no audio work. The worklet reuses a cached <code>Float32Array</code> view of WASM memory (rebuilding it only on the first block or if the buffer or block size changes), so a normal block allocates nothing.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>What it costs</h2>
+  <p><code>just gates</code> measures these numbers on every check, in under 2 seconds, against limits in <code>gates.toml</code>. The baselines below were measured on Linux x86_64 with a PipeWire pulse server.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Measure</th><th class="n">Baseline</th><th class="n">Limit</th></tr></thead>
+      <tbody>
+        <tr><td>Daemon playing, private memory</td><td class="n">1,156–1,228 kB</td><td class="n">1,536 kB</td></tr>
+        <tr><td>Daemon playing, CPU</td><td class="n">0.05–0.08 %</td><td class="n">0.5 %</td></tr>
+        <tr><td>Daemon playing, wakeups</td><td class="n">20–25 /s</td><td class="n">40 /s</td></tr>
+        <tr><td>Daemon muted (no clients), threads · wakeups</td><td class="n">2 · 0 /s</td><td class="n">2 · 0 /s</td></tr>
+        <tr><td>TUI, private memory</td><td class="n">224–232 kB</td><td class="n">384 kB</td></tr>
+        <tr><td>Core DSP, worst kind</td><td class="n">≈ 3.2 ns/sample</td><td class="n">6 ns</td></tr>
+        <tr><td>noiseman.wasm</td><td class="n">6,182 B</td><td class="n">8,192 B</td></tr>
+        <tr><td>Whole web demo</td><td class="n">17,672 B</td><td class="n">20,480 B</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Try the browser version at <a href="../">the web demo</a>.</p>
+</section>
+</main>
+</body>
+</html>

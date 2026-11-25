@@ -6,7 +6,7 @@ set positional-arguments
 default:
     @just --list
 
-# fetch dependencies
+# fetch dependencies and add the wasm32 target
 setup:
     cargo fetch
     rustup target add wasm32-unknown-unknown
@@ -27,7 +27,7 @@ run *args:
 fmt:
     cargo fmt --all
 
-# clippy with warnings as errors, default build and with the gui feature
+# clippy with warnings as errors: default build, the gui feature, and the web crate for wasm32
 lint:
     cargo clippy --workspace --all-targets -- -D warnings
     cargo clippy --workspace --all-targets --features noiseman/gui -- -D warnings
@@ -40,14 +40,15 @@ check:
     just test
     just gates
 
-# quality gates: artifact sizes, DSP speed, daemon/TUI/CLI memory and CPU; limits and baselines in gates.toml
+# quality gates: artifact sizes, DSP speed, daemon memory/threads/CPU/wakeups (playing and muted), TUI and CLI
+# memory; limits and baselines in gates.toml
 gates: web
     cargo build -q --release
     cargo build -q --release -p noiseman-core --example noise_profile
     python3 tools/gates.py
 
-# dependency health (network, ~1 s): advisories for every locked crate (OSV/RustSec), and drift of direct and
-# vendored crates from their latest stable release; exits 1 only on a vulnerability
+# dependency health (network, ~1 s): advisories for every locked crate (OSV/RustSec), and drift of direct
+# dependencies and vendored crates from their latest stable release; exits 1 only on a vulnerability
 deps:
     python3 tools/deps.py
 
@@ -68,6 +69,8 @@ web:
     cp web/site/* target/web/
     cp target/wasm32-unknown-unknown/release/noiseman_web.wasm target/web/noiseman.wasm
     cp assets/noiseman.svg target/web/favicon.svg
+    mkdir -p target/web/architecture
+    cp docs/architecture.html target/web/architecture/index.html
 
 # serve the web demo on http://localhost:8000
 web-serve: web

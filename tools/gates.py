@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Quality gates: artifact sizes, DSP speed, and the memory/CPU of the daemon, TUI and CLI. Limits: gates.toml.
+"""Quality gates: artifact sizes, DSP speed, daemon memory/threads/CPU/wakeups, TUI and CLI memory. Limits: gates.toml.
 
 Expects release builds (`just gates` makes them). The runtime gates start a private daemon (own runtime dir) with
 `--muted`, then `vol 0` + `unmute`: a real PulseAudio stream at zero gain, so it costs what playing costs, silently.
-Without a PulseAudio server they are reported as SKIP. Exit status 1 if any gate fails.
+Without a PulseAudio server, or if the daemon cannot start a stream, they are reported as SKIP. Exit status 1 if any
+gate fails.
 """
 
 import fcntl

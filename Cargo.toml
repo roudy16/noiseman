@@ -35,8 +35,9 @@ inherits = "release"
 debug = true
 strip = false
 
-# pulseaudio 0.3.2 zero-fills a 1 MiB read buffer per socket read; vendored with a 64 KiB chunk.
-# Drop this once upstream (colinmarc/pulseaudio-rs) fixes Reactor::recv.
+# pulseaudio 0.3.2, vendored with two fixes: Reactor::recv reads 64 KiB chunks instead of zero-filling 1 MiB per read,
+# and handle_command removes a server-killed playback stream (PlaybackStreamKilled) so dropping it cannot hang.
+# Drop this once upstream (colinmarc/pulseaudio-rs) fixes both.
 [patch.crates-io]
 pulseaudio = { path = "vendor/pulseaudio" }
 # cpal 0.18.2 with the PulseAudio playback latency thread polling only on play/pause/drop.

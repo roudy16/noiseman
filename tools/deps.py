@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Dependency health: advisories for every locked crate, and drift of direct and vendored crates from crates.io.
+"""Dependency health: advisories for every locked crate, and drift of direct dependencies and vendored crates from
+crates.io.
 
 Advisories come from OSV (https://osv.dev), which imports the RustSec database that `cargo audit` uses. Latest versions
 and yanks come from the crates.io sparse index, the CDN cargo itself reads. Only public crate names and versions are
@@ -66,6 +67,10 @@ def direct_and_vendored(meta: dict) -> dict[str, dict]:
                 continue
             vendored = "/vendor/" in p["manifest_path"]
             picked[p["name"]] = {"version": p["version"], "vendored": vendored, "req": reqs.get(p["name"], "?")}
+    # Vendored crates can be transitive (pulseaudio comes in through cpal); they drift all the same.
+    for p in packages.values():
+        if p["id"] not in members and "/vendor/" in p["manifest_path"]:
+            picked.setdefault(p["name"], {"version": p["version"], "vendored": True, "req": "?"})
     return picked
 
 
@@ -132,7 +137,7 @@ def main() -> int:
     locked = len({(p["name"], p["version"]) for p in meta["packages"]}) - len(meta["workspace_members"])
     print(
         f"{len(vulns)} vulnerabilities, {len(notices)} advisories (informational), "
-        f"{len(drifted)} of {len(deps)} direct/vendored crates behind; {locked} locked crates checked"
+        f"{len(drifted)} of {len(deps)} direct and vendored crates behind; {locked} locked crates checked"
     )
     return 1 if vulns else 0
 
