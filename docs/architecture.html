@@ -45,7 +45,8 @@ main { max-width: 860px; margin: 0 auto; padding-block: 48px 80px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
   display: grid; gap: 56px; }
 header { display: grid; gap: 14px; }
-.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.eyebrow { font: 500 12px/1.6 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.eyebrow a { white-space: nowrap; }
 h1 { font: 700 clamp(36px, 7vw, 56px)/1.02 var(--display); margin: 0; letter-spacing: -.02em; text-wrap: balance; }
 h2 { font: 600 26px/1.15 var(--display); margin: 0; text-wrap: balance; }
 p { margin: 0; max-width: 66ch; }
@@ -101,7 +102,8 @@ a { color: var(--accent); }
 <body>
 <main>
 <header>
-  <div class="eyebrow">Architecture · noiseman</div>
+  <div class="eyebrow">Architecture · <a href="https://github.com/roudy16/noiseman">noiseman on GitHub</a>
+    · <a href="../">Try the demo</a></div>
   <h1>How noiseman makes noise</h1>
   <p class="lede">A small background daemon owns the audio. The CLI, TUI and optional GUI control it by sending text lines over a Unix socket. The noise itself comes from one dependency-free Rust crate that also compiles to a 6 KB WebAssembly module for the browser demo.</p>
   <div class="spectrum" aria-hidden="true"><span style="background:var(--k-white)"></span><span style="background:var(--k-pink)"></span><span style="background:var(--k-brown)"></span><span style="background:var(--k-blue)"></span><span style="background:var(--k-violet)"></span></div>
@@ -385,11 +387,12 @@ a { color: var(--accent); }
         <tr><td>TUI, private memory</td><td class="n">224–232 kB</td><td class="n">384 kB</td></tr>
         <tr><td>Core DSP, worst kind</td><td class="n">≈ 2.2 ns/sample</td><td class="n">6 ns</td></tr>
         <tr><td>noiseman.wasm</td><td class="n">6,237 B</td><td class="n">8,192 B</td></tr>
-        <tr><td>Whole web demo</td><td class="n">18,940 B</td><td class="n">20,480 B</td></tr>
+        <tr><td>Whole web demo</td><td class="n">19,690 B</td><td class="n">20,480 B</td></tr>
       </tbody>
     </table>
   </div>
-  <p>Try the browser version at <a href="../">the web demo</a>.</p>
+  <p>Try the browser version at <a href="../">the web demo</a>, or get the source and the app on
+    <a href="https://github.com/roudy16/noiseman">GitHub</a>.</p>
 </section>
 </main>
 </body>

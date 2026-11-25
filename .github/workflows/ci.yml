@@ -1,0 +1,51 @@
+# Checks pushes to main and pull requests: on Linux `just ci` (format, lint, tests, size gates; the timing and
+# runtime gates need a quiet machine and a PulseAudio server, so they stay local), on macOS and Windows clippy and the
+# tests of the root package and core, which hold the OS-specific code.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to a pull request cancels its older run; every push to main gets a result.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libasound2-dev just
+      - uses: actions/checkout@v7
+      # Third-party actions pinned to a commit; bump the SHA (and comment) to update.
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - run: just ci
+
+  other:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      # Third-party actions pinned to a commit; bump the SHA (and comment) to update.
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - run: cargo clippy -p noiseman -p noiseman-core --all-targets -- -D warnings
+      - run: cargo clippy -p noiseman -p noiseman-core --all-targets --features noiseman/gui -- -D warnings
+      - run: cargo test -p noiseman -p noiseman-core

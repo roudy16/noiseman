@@ -1,11 +1,13 @@
 # Limits for `just gates` (tools/gates.py). Baselines measured 2026-11-24 on Linux x86_64 (PipeWire 1.6 pulse
 # server), release build. Sizes and memory have ~10-30% headroom; thread and wakeup counts are design invariants
 # (see AGENTS.md). Raise a limit only on purpose, in the commit that needs it, and say why.
+# CI (`just ci`, GitHub's shared runners) checks only [size]; [dsp] and [runtime] are timing and resource gates for
+# local runs.
 
 [size]
 noiseman_bytes = 900_000       # baseline 811,680 (default features, no gui)
 wasm_bytes = 8_192             # baseline 6,237
-web_total_bytes = 20_480       # baseline 18,940 (top-level target/web: page, css, js, wasm, favicon; not preview/ or architecture/)
+web_total_bytes = 20_480       # baseline 19,690 (top-level target/web: page, css, js, wasm, favicon; not preview/ or architecture/)
 
 [dsp]
 # Worst kind: pink/blue ~2.2 ns on the Linux baseline machine (2.9-3.05 before noise.rs's white() change), 3.5-3.6

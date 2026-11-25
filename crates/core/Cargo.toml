@@ -1,6 +1,6 @@
 [package]
 name = "noiseman-core"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MIT"
 description = "noiseman's sound: noise generators, kind switching and the volume curve. No dependencies, no I/O."

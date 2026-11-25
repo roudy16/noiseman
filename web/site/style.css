@@ -63,8 +63,9 @@ body:not(.playing) input[type="range"] { --fill: var(--track); }
 kbd { color: var(--ink); font: inherit; font-weight: bold; }
 .keys span { white-space: nowrap; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.about { font-size: .8rem; text-align: center; }
+.about { font-size: .8rem; text-align: center; text-wrap: balance; }
 .about a { color: var(--fg); }
+.about + .about { margin-top: -.75rem; }
 @media (max-width: 30rem) {
   body { padding: 1rem; }
   .card { padding: 1.25rem; }

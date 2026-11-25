@@ -45,6 +45,7 @@ jobs:
         run: |
           version=$(cargo pkgid -p noiseman | sed 's/.*[@#]//')
           [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME, Cargo.toml $version"; exit 1; }
+          grep -q "^## \\[$version\\]" CHANGELOG.md || { echo "CHANGELOG.md has no section for $version"; exit 1; }
       - run: tools/package.sh ${{ matrix.target }}
         shell: bash
       - uses: actions/upload-artifact@v7
@@ -64,7 +65,44 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      # The tag's CHANGELOG.md section, then install help; a tag without a section fails here, before publishing.
+      - name: Write the release notes
+        run: |
+          # GitHub keeps single newlines in release notes, so join the CHANGELOG's wrapped continuation lines.
+          awk -v h="[${GITHUB_REF_NAME#v}]" '/^## / { p = $2 == h; next } /^\[/ { p = 0 } p' CHANGELOG.md |
+            awk 'NR > 1 && /^ +[^ ]/ { sub(/^ +/, " "); printf "%s", $0; next } NR > 1 { print "" } { printf "%s", $0 }
+              END { if (NR) print "" }' > notes.md
+          grep -q . notes.md || { echo "CHANGELOG.md has no section for $GITHUB_REF_NAME"; exit 1; }
+          cat >> notes.md <<'EOF'
+
+          ## Install
+
+          Linux and macOS:
+
+          ```sh
+          curl -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh | sh
+          ```
+
+          Windows 10 (1803 or later) and 11, in PowerShell:
+
+          ```powershell
+          irm https://github.com/roudy16/noiseman/releases/latest/download/install.ps1 | iex
+          ```
+
+          **Which file?** Each archive has a `.sha256` checksum.
+          - Linux: `x86_64-unknown-linux-gnu` (Intel/AMD) or `aarch64-unknown-linux-gnu` (ARM)
+          - macOS: `aarch64-apple-darwin` (Apple Silicon) or `x86_64-apple-darwin` (Intel)
+          - Windows: `x86_64-pc-windows-msvc` (Intel/AMD) or `aarch64-pc-windows-msvc` (ARM)
+
+          **Downloaded by hand, the binaries are not signed:**
+          - macOS: run `xattr -d com.apple.quarantine noiseman`, or allow it in System Settings > Privacy & Security.
+          - Windows: in the SmartScreen prompt, choose More info > Run anyway.
+          EOF
+          cat notes.md
+      # --generate-notes appends GitHub's notes (the Full Changelog link) after the file's.
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* tools/install.sh tools/install.ps1 --verify-tag --generate-notes --title "noiseman $GITHUB_REF_NAME"
+        run: >-
+          gh release create "$GITHUB_REF_NAME" dist/* tools/install.sh tools/install.ps1 --verify-tag
+          --notes-file notes.md --generate-notes --title "noiseman $GITHUB_REF_NAME"

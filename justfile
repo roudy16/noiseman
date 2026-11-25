@@ -40,6 +40,15 @@ check:
     just test
     just gates
 
+# what CI runs: format check, lint, tests and the size gates (DSP and runtime gates are for local runs)
+ci:
+    cargo fmt --all --check
+    just lint
+    just test
+    just web
+    cargo build -q --release
+    python3 tools/gates.py --sizes-only
+
 # quality gates: artifact sizes, DSP speed, daemon memory/threads/CPU/wakeups (playing and muted), TUI and CLI
 # memory; limits and baselines in gates.toml
 gates: web

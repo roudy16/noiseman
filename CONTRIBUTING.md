@@ -1,7 +1,8 @@
 # Contributing
 
 `AGENTS.md` describes the layout, invariants and release process; `DESIGN.md` has the full design; open work is in
-`TODO.md`. Run `just check` before committing.
+`TODO.md`. Run `just check` before committing. CI runs `just ci` (fmt check, lint, tests and the size gates; the
+timing and runtime gates are for local runs) on Linux, and clippy and tests on macOS and Windows.
 
 ## Build from source
 
@@ -33,6 +34,7 @@ just fmt                   # format with rustfmt
 just lint                  # clippy across default, gui and wasm32 targets
 just gates                 # check size, DSP and runtime limits (gates.toml)
 just check                 # fmt check, lint, test and gates (run before committing)
+just ci                    # what CI runs: fmt check, lint, test and the size gates
 just deps                  # check advisories and outdated dependencies (network)
 just web                   # build the static browser demo into target/web
 just web-serve             # serve the browser demo on http://localhost:8000

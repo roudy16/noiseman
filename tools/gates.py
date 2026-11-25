@@ -4,8 +4,8 @@
 Expects release builds (`just gates` makes them). The runtime gates start a private daemon (own runtime dir) with
 `--muted`, then `vol 0` + `unmute`: a real PulseAudio stream at zero gain, so it costs what playing costs, silently.
 Without a PulseAudio server, or if the daemon cannot start a stream, they are reported as SKIP. They read /proc, so
-they run on Linux only; elsewhere they are SKIP too, and the size and DSP gates still run. Exit status 1 if any gate
-fails.
+they run on Linux only; elsewhere they are SKIP too, and the size and DSP gates still run. `--sizes-only` (CI, on
+shared runners where timing and resource use mean little) runs only the size gates. Exit status 1 if any gate fails.
 """
 
 import os
@@ -179,15 +179,19 @@ def runtime(limits: dict) -> None:
 
 
 def main() -> int:
+    sizes_only = "--sizes-only" in sys.argv[1:]
     limits = tomllib.loads((ROOT / "gates.toml").read_text())
-    for path in (BIN, WEB / "noiseman.wasm", PROFILE):
+    for path in (BIN, WEB / "noiseman.wasm") + (() if sizes_only else (PROFILE,)):
         if not path.exists():
             print(f"gates: missing {path.relative_to(ROOT)}; run `just gates`", file=sys.stderr)
             return 1
     start = time.monotonic()
     sizes(limits["size"])
-    dsp(limits["dsp"])
-    runtime(limits["runtime"])
+    if sizes_only:
+        print("SKIP dsp and runtime gates: timing and resource gates are for local runs (`just gates`)")
+    else:
+        dsp(limits["dsp"])
+        runtime(limits["runtime"])
     failed = 0
     for name, value, limit, unit in results:
         ok = value <= limit
