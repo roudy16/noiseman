@@ -8,7 +8,7 @@ wasm_bytes = 8_192             # baseline 6,237
 web_total_bytes = 20_480       # baseline 18,940 (top-level target/web: page, css, js, wasm, favicon; not preview/ or architecture/)
 
 [dsp]
-# Worst kind: pink/blue ~3.0-3.2 ns on the Linux baseline machine (before noise.rs's white() change), 3.5-3.6
+# Worst kind: pink/blue ~2.2 ns on the Linux baseline machine (2.9-3.05 before noise.rs's white() change), 3.5-3.6
 # on the i9-11980HK under Windows and WSL Linux alike. Machine dependent: about 2x headroom, for a slower or busy box.
 max_ns_per_sample = 6.0
 

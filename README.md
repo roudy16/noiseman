@@ -132,7 +132,8 @@ demo's WebAssembly is built only from `crates/core` and `web/`, with no third-pa
   slow. The cause was a false dependency: `white()`'s int-to-float conversion
   waited on the previous sample's filter sum. `white()` now builds the float
   from the mantissa bits, and `pink_raw` is always inlined: 3.5-3.6 ns/sample
-  on Windows and Linux. Recheck on the Linux baseline machine.
+  on the Windows machine (Windows and WSL Linux), 2.2 (from 2.9-3.05) on the
+  Linux baseline machine.
 - [ ] **GUI on fractional display scaling.** The window asks for 312x124
   logical pixels, but the bitmap font only draws at whole-number scales, so at
   a fractional OS scale the controls leave an empty band on the right and at
