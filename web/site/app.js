@@ -2,7 +2,8 @@
 // shortly after every pause, so a paused page does no audio work.
 const KINDS = ["Brown", "White", "Blue", "Pink", "Violet"];
 const ACCENTS = ["#d08f4a", "#8c96a8", "#4f8fd6", "#d4708f", "#9b74d6"];
-const FADE_MS = 150;
+// The voice's 100 ms fade (FADE_SECS in crates/core) plus message and output latency.
+const SUSPEND_AFTER_MS = 200;
 
 const state = { kind: 0, vol: 50, playing: false, ...load() };
 let wasm = loadWasm();
@@ -82,7 +83,7 @@ async function setPlaying(on) {
     await (on ? Promise.all([audio, resume]) : audio);
     if (state.playing !== on) return;
     send();
-    if (!on) suspendTimer = setTimeout(() => audioCtx?.suspend(), FADE_MS);
+    if (!on) suspendTimer = setTimeout(() => audioCtx?.suspend(), SUSPEND_AFTER_MS);
   } catch (e) {
     audio = null;
     state.playing = false;

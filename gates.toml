@@ -10,10 +10,10 @@ wasm_bytes = 8_192
 web_total_bytes = 22_528       # top-level target/web: page, css, js, wasm, favicon; not preview/ or architecture/
 
 [dsp]
-# Voice::step, as the daemon and the wasm run it: Noise::next plus the gain fade, which costs little once settled (a fade
-# that never settles, as before its snap fix, costs ~2.5 ns more). Worst kind: blue/pink ~2.6-2.8 ns on the Linux
-# baseline machine; Noise::next alone ran 3.5-3.6 on the i9-11980HK under Windows and WSL Linux alike (Voice::step not
-# yet measured there). Machine dependent: about 2x headroom, for a slower or busy box.
+# Voice::step, as the daemon and the wasm run it: Noise::next plus the gain fade, which once settled is one
+# well-predicted branch per sample (a fade runs for 100 ms after a change). Worst kind: brown ~2.7 ns, blue ~2.5 on the
+# Linux baseline machine (2026-11-25); Noise::next alone ran 3.5-3.6 on the i9-11980HK under Windows and WSL Linux
+# alike (Voice::step not yet measured there). Machine dependent: about 2x headroom, for a slower or busy box.
 max_ns_per_sample = 6.0
 
 [runtime]

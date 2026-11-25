@@ -26,7 +26,7 @@ use player::Player;
 
 /// A stalled client must not stall the player thread for longer than this per reply.
 const WRITE_TIMEOUT: Duration = Duration::from_millis(200);
-/// Longer than the slowest quit fade (100 ms + 3 device buffers).
+/// Longer than the slowest quit fade (`FADE_SECS` + 20 ms + 4 device buffers: about 460 ms with 4096-frame buffers).
 const LOCK_WAIT: Duration = Duration::from_secs(1);
 
 enum Msg {

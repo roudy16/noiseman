@@ -38,11 +38,11 @@ noiseman is a single-window Rust desktop app for Linux, Windows and macOS. It pl
 | PRNG + DSP | Hand-written in `crates/core/src/noise.rs` (~80 lines, plus the test): xorshift64, Kellet pink, leaky-integrator brown, first differences for blue and violet | Measured at 1.07-2.84 ns per frame. The PRNG period is 2^64, about 12 million years at 48 kHz | `rand` (a dependency for 5 lines), rustfft |
 | Player → audio | `static GAIN: AtomicU32` (f32 bits) and `static KIND: AtomicU8`, both `Relaxed`, private to `audio.rs` behind `set_gain()`, `kind()` and `set_kind()` | Only two independent scalars cross threads. No lock, no allocation, no `Arc`. Mute is just a target gain of 0 | rtrb, triple_buffer, Mutex |
 | Audio → player (device lost) | The cpal error callback calls `on_lost()`, which sends `AudioLost` over the player's mpsc channel | Wakes the player thread only when something is wrong. No polling, no timer | "Recover on next user action" (P1). A 1 s poll timer (P3) |
-| Click-free changes | One-pole gain smoother per sample, τ = 10 ms, `k = 1 - exp(-1/(0.01·sr))`. A change of noise type dips to 0, switches, then ramps back up | One multiply-add per sample. A new stream fades in because the smoothed gain starts at 0 | Crossfade buffer or a second generator |
+| Click-free changes | Every gain change reaches its target in exactly `FADE_SECS` = 100 ms (`round(0.1·sr)` samples: 4800 at 48 kHz) along smoothstep `s(t) = 3t² - 2t³`, evaluated directly from the samples left (f32 forward differences drift by up to 1.6e-4 of the span; this stays within 3e-7). A new target mid-fade starts a new fade from the current level. A change of noise type fades to exactly 0, switches, then fades back up (200 ms) | Same duration on every machine and rate, zero slope at both ends, and exact landing, so no settle heuristics. Settled, a sample costs the noise times the level plus one well-predicted branch. A new stream fades in because the level starts at 0 | Crossfade buffer or a second generator |
 | Errors | Hand-written `AudioError { NoDevice, Format(SampleFormat), Cpal(cpal::Error) }` with `From` and `Display`. Errors are logged with `eprintln!` plus context and reported to frontends in `State.error` | Explicit errors with no extra dependency | thiserror, anyhow, log, env_logger |
 | Build profile | `opt-level="s"`, `lto=true`, `codegen-units=1`, `panic="abort"`, `strip=true` | Binary size is the cost that matters; DSP speed is too small to measure. `panic=abort` means a panic in the callback can never unwind across FFI. Compare against `opt-level=3` once | Default release profile |
 | Packaging | Per-target `.tar.gz`, or `.zip` for Windows, in two variants: `noiseman-<target>` (terminal build) and `noiseman-gui-<target>` (with `gui`), each with the binary, LICENSE, README, that variant's third-party licenses, Linux icons and desktop entry (window or terminal UI), and in the gui variant Windows `noiseman-gui.exe`, from `tools/package.sh TARGET [gui]`, built for Linux, macOS and Windows by `.github/workflows/release.yml` on a `v*` tag; `tools/install.sh`, `tools/install.ps1` (the gui variant with `NOISEMAN_GUI=1`) or `cargo binstall` (terminal build) installs it | Prebuilt binaries without a packaging toolchain | .msi, .app/.dmg, Flatpak (deferred) |
-| Tests | `#[cfg(test)]` in `noise.rs` (level and bounds), `voice.rs` (a kind change fades through silence), `protocol.rs` (round trip), `tui.rs` (color mapping) and `platform/mod.rs` (the socket contract both OS backends must meet) | Checks level and boundedness, which is where the bugs are (see §4), plus the fade and the wire format | Benchmark harness, per-function test suites |
+| Tests | `#[cfg(test)]` in `noise.rs` (level and bounds), `voice.rs` (fade length, S-curve landing exactly, kind change through silence, retarget continuity), `protocol.rs` (round trip), `tui.rs` (color mapping) and `platform/mod.rs` (the socket contract both OS backends must meet) | Checks level and boundedness, which is where the bugs are (see §4), plus the fade and the wire format | Benchmark harness, per-function test suites |
 
 **Build prerequisites (Linux):** a Rust toolchain, `pkg-config` and `libasound2-dev` (cpal's ALSA host is always compiled in, even with the `pulseaudio` feature). No C++ toolchain. The wxDragon prerequisites (CMake, a C++ compiler, GTK3 and libclang headers, MSVC on Windows) went with wxDragon on 2026-11-23.
 
@@ -130,10 +130,10 @@ impl Noise {
 }
 
 // crates/core/src/voice.rs
-pub struct Voice { noise: Noise, playing: Kind, level: f32, smoothing: f32 }
+pub struct Voice { noise: Noise, playing: Kind, level: f32, from: f32, target: f32, left: u32, len: u32, inv_len: f32 }
 impl Voice {
     pub fn new(sample_rate: u32, seed: u64, kind: Kind) -> Self;   // level starts at 0
-    pub fn step(&mut self, want: Kind, gain: f32) -> f32;          // one smoothed sample
+    pub fn step(&mut self, want: Kind, gain: f32) -> f32;          // one sample, faded over FADE_SECS
 }
 
 // src/backend/audio.rs
@@ -168,11 +168,15 @@ for frame in data.chunks_mut(channels) {
     frame.fill(T::from_sample(v.step(want, gain)));   // mono to all channels
 }
 
-// Voice::step
-let target = if want == self.playing { gain } else { 0.0 };
-self.level += (target - self.level) * self.smoothing;
-if (target - self.level).abs() < 1e-6 { self.level = target; }
-if want != self.playing && self.level < 1e-4 { self.playing = want; }
+// Voice::step (settled: one well-predicted branch):
+if self.left > 0 || want != self.playing || gain != self.target {
+    let target = if want == self.playing { gain } else { 0.0 };
+    if target != self.target { (self.from, self.target, self.left) = (self.level, target, self.len); }
+    self.left = self.left.saturating_sub(1);
+    let u = self.left as f32 * self.inv_len;    // 0 on the last sample: lands exactly on target
+    self.level = target + (self.from - target) * (u * u * (3.0 - 2.0 * u));
+    if want != self.playing && self.left == 0 { self.playing = want; }
+}
 self.noise.next(self.playing) * self.level
 ```
 
@@ -200,12 +204,12 @@ self.noise.next(self.playing) * self.level
 All of this lives in `Player`, on the daemon's player thread.
 - **Startup:** `Player::new(on_lost, muted)` starts at volume 50 and, unless `--muted`, sets `GAIN = gain(vol)` and calls `start()`. The new stream fades in because the `Voice` level starts at 0.
 - **Volume:** `set_vol` writes `GAIN`, or 0 while muted. The smoother removes zipper noise.
-- **Type change:** `set_kind`. The audio callback ramps to about 0 (≤ ~90 ms at full volume), switches generator, and ramps back up.
+- **Type change:** `set_kind`. The audio callback fades to exactly 0 (100 ms), switches generator, and fades back up (100 ms).
 - **Mute:**
   1. Set `GAIN = 0`.
-  2. Set the deadline `drop_stream_at = now + 100 ms + 3 × Output::buffer_time()` (PulseAudio queues up to 3 buffers). The buffer time comes from `Stream::buffer_size()` when the host reports it (the cpal docs say not to trust it as a bound), otherwise from the requested 4096 frames. That is about 355 ms at 48 kHz.
+  2. Set the deadline `drop_stream_at = now + FADE_SECS + 20 ms + 4 × Output::buffer_time()`: the callback picks up the new gain within one buffer and PulseAudio queues up to 3 more. The buffer time comes from `Stream::buffer_size()` when the host reports it (the cpal docs say not to trust it as a bound), otherwise from the requested 4096 frames. That is about 460 ms at 48 kHz.
   3. The player loop waits with `recv_timeout` until the deadline, then `tick()` drops the stream. That closes the device: 0 callbacks, 0 CPU.
-  - The 100 ms term covers the fade-out. P1's "2 × buffer + 20 ms" would cut the fade short on hosts with 10 ms buffers.
+  - `FADE_SECS` (from `noiseman-core`) covers the fade-out itself. P1's "2 × buffer + 20 ms" would cut the fade short on hosts with 10 ms buffers.
 - **Unmute:** clears the deadline and restores `GAIN`. If the stream is already gone, calls `start()`, which fades in.
 - **Start failure:** `start()` errors are logged, stored in `State.error` for frontends, and set `muted = true`, so the user can retry by unmuting.
 - **Device lost:** the error callback matches `DeviceNotAvailable | StreamInvalidated` and calls `on_lost()`, which sends `Msg::AudioLost` to the player thread. Every other error kind is only logged. Do not match `Xrun` explicitly, because it is gone in 0.19.
@@ -243,7 +247,7 @@ All figures except the DSP cost are targets to check on the first release build.
 | Callbacks while playing | ~12/s where 4096 frames is honoured; ~100/s on WASAPI shared mode; set by the graph quantum on PipeWire | `perf stat -e context-switches` |
 | CPU while playing (our process) | < 0.3% of one core. DSP ≈ 0.014%; the rest is wakeups | `pidstat -u -p $PID 1` |
 | RSS | Linux/GTK3 ≤ 30 MB; Windows and macOS ≤ 25 MB. The fltk swap would be ≤ 10 MB | `/proc/$PID/status` VmRSS, or the OS tools |
-| Heap growth while playing | 0 (our heap < 100 KB; DSP state ~72 B per stream: `Noise` 56 B + fade state) | VmRSS stays flat over 10 min |
+| Heap growth while playing | 0 (our heap < 100 KB; DSP state ~88 B per stream: `Noise` 56 B + fade state) | VmRSS stays flat over 10 min |
 | Binary, stripped | ≤ 12 MB (wx); ~1-3 MB with fltk | `ls -l target/release/noiseman`. Compare `opt-level="s"` against `3` once |
 | Startup to first window | < 300 ms | `time`, or a stopwatch on first frame |
 

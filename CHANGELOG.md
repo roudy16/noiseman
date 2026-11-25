@@ -7,6 +7,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Volume changes, mute and noise changes now glide over 100 ms on an S-curve (smoothstep) instead of a ~10 ms
+  exponential fade, and land exactly on the new volume; the length is the same at every sample rate. A noise change
+  fades out and back in over 200 ms, and mute and quit take about 100 ms longer to release the audio device.
 - `install.sh` says why noiseman cannot run on a system instead of blaming the glibc version: a missing ALSA library
   (with the package to install), a glibc older than the binary needs (with both versions), musl (Alpine), NixOS
   without nix-ld, a 32-bit system, a CPU other than 64-bit x86 or ARM, or macOS older than 11. The checks that need no
@@ -17,8 +20,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - At volumes from about 30% up, the volume fade never quite reached its target, so the player kept computing it for
-  every sample: playing now costs about half the CPU it did in the sound code. The level it settled at was inaudibly
-  low (at most 0.0014%).
+  every sample: playing now costs about half the CPU it did in the sound code.
 
 ## [0.1.1] - 2026-11-25
 

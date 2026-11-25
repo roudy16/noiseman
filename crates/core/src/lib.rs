@@ -5,7 +5,7 @@ mod noise;
 mod voice;
 
 pub use noise::Noise;
-pub use voice::Voice;
+pub use voice::{FADE_SECS, Voice};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]

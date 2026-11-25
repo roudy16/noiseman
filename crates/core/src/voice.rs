@@ -1,36 +1,57 @@
 use crate::{Kind, Noise};
 
-const FADE_SECS: f32 = 0.01;
+/// How long every gain change takes, mute included; the daemon's stream-drop deadline is derived from it.
+pub const FADE_SECS: f32 = 0.1;
 
-/// A noise generator with click-free changes: gain moves with a ~10 ms one-pole fade, and a kind change fades to
-/// silence before switching generators.
+/// A noise generator with click-free changes: gain moves to its target in exactly [`FADE_SECS`] along a smoothstep
+/// S-curve, and a kind change fades to silence before switching generators.
 pub struct Voice {
     noise: Noise,
     playing: Kind,
     level: f32,
-    smoothing: f32,
+    from: f32,
+    target: f32,
+    left: u32,
+    len: u32,
+    inv_len: f32,
 }
 
 impl Voice {
     pub fn new(sample_rate: u32, seed: u64, kind: Kind) -> Self {
+        let len = ((FADE_SECS * sample_rate as f32).round() as u32).max(1);
         Voice {
             noise: Noise::new(sample_rate, seed),
             playing: kind,
             level: 0.0,
-            smoothing: 1.0 - (-1.0 / (FADE_SECS * sample_rate as f32)).exp(),
+            from: 0.0,
+            target: 0.0,
+            left: 0,
+            len,
+            inv_len: 1.0 / len as f32,
         }
     }
 
     #[inline]
     pub fn step(&mut self, want: Kind, gain: f32) -> f32 {
-        let target = if want == self.playing { gain } else { 0.0 };
-        let next = self.level + (target - self.level) * self.smoothing;
-        // Rounding stalls the fade just short of high targets, so also snap once a step stops changing the level.
-        self.level = if next == self.level || (target - next).abs() < 1e-6 { target } else { next };
-        if want != self.playing && self.level < 1e-4 {
-            self.playing = want;
+        if self.left > 0 || want != self.playing || gain != self.target {
+            self.fade(want, gain);
         }
         self.noise.next(self.playing) * self.level
+    }
+
+    fn fade(&mut self, want: Kind, gain: f32) {
+        let target = if want == self.playing { gain } else { 0.0 };
+        if target != self.target {
+            (self.from, self.target, self.left) = (self.level, target, self.len);
+        }
+        self.left = self.left.saturating_sub(1);
+        // Evaluated from the end (smoothstep is symmetric), so u = 0 on the last sample lands exactly on the target.
+        // Direct evaluation, not forward differences: those drift by up to 1.6e-4 of the span in f32.
+        let u = self.left as f32 * self.inv_len;
+        self.level = target + (self.from - target) * (u * u * (3.0 - 2.0 * u));
+        if want != self.playing && self.left == 0 {
+            self.playing = want;
+        }
     }
 }
 
@@ -38,18 +59,52 @@ impl Voice {
 mod tests {
     use super::*;
 
+    fn run(v: &mut Voice, want: Kind, gain: f32, n: u32) -> Vec<f32> {
+        (0..n)
+            .map(|_| {
+                v.step(want, gain);
+                v.level
+            })
+            .collect()
+    }
+
     #[test]
-    fn kind_change_fades_through_silence() {
+    fn fade_length_is_100_ms() {
+        assert_eq!(Voice::new(48_000, 1, Kind::White).len, 4800);
+        assert_eq!(Voice::new(44_100, 1, Kind::White).len, 4410);
+    }
+
+    #[test]
+    fn volume_change_is_an_s_curve_that_lands_exactly() {
         let mut v = Voice::new(48_000, 1, Kind::White);
-        for _ in 0..9_600 {
-            v.step(Kind::White, 1.0);
-        }
-        assert_eq!(v.level, 1.0, "the fade settles exactly");
-        let mut quiet = false;
-        for _ in 0..9_600 {
+        let levels = run(&mut v, Kind::White, 0.7, 4800);
+        assert_eq!(v.level, 0.7);
+        let steps: Vec<f32> = levels.windows(2).map(|w| w[1] - w[0]).collect();
+        assert!(steps.iter().all(|&d| d >= 0.0), "monotonic");
+        let mid = steps[steps.len() / 2];
+        assert!(steps[0] < mid / 100.0 && steps[steps.len() - 1] < mid / 100.0, "S-shaped");
+    }
+
+    #[test]
+    fn kind_change_switches_at_silence() {
+        let mut v = Voice::new(48_000, 1, Kind::White);
+        run(&mut v, Kind::White, 1.0, 4800);
+        for _ in 0..4800 {
+            assert!(v.playing == Kind::White || v.level == 0.0);
             v.step(Kind::Brown, 1.0);
-            quiet |= v.level < 1e-4;
         }
-        assert!(quiet && v.playing == Kind::Brown && (v.level - 1.0).abs() < 1e-2);
+        assert_eq!((v.playing, v.level), (Kind::Brown, 0.0));
+        run(&mut v, Kind::Brown, 1.0, 4800);
+        assert_eq!(v.level, 1.0);
+    }
+
+    #[test]
+    fn retarget_mid_fade_is_continuous() {
+        let mut v = Voice::new(48_000, 1, Kind::White);
+        let mut levels = run(&mut v, Kind::White, 1.0, 2400);
+        levels.extend(run(&mut v, Kind::White, 0.0, 4800));
+        assert_eq!(v.level, 0.0);
+        let max_step = 1.5 / 4800.0 + 1e-6; // smoothstep's peak slope is 1.5 spans per fade length
+        assert!(levels.windows(2).all(|w| (w[1] - w[0]).abs() <= max_step));
     }
 }

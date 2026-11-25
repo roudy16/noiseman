@@ -89,8 +89,10 @@ impl Player {
         if muted {
             if self.stream.is_some() && self.drop_stream_at.is_none() {
                 let queued = self.stream.as_ref().map_or(Duration::ZERO, audio::Output::buffer_time);
-                // 100 ms covers the 10 ms-τ fade-out; the buffers cover audio already queued in the device.
-                self.drop_stream_at = Some(Instant::now() + Duration::from_millis(100) + 3 * queued);
+                // The callback picks up the gain within a buffer, fades for FADE_SECS, and up to 3 more buffers are
+                // queued in the device; 20 ms of slack for scheduling.
+                let fade = Duration::from_secs_f32(noiseman_core::FADE_SECS) + Duration::from_millis(20);
+                self.drop_stream_at = Some(Instant::now() + fade + 4 * queued);
             }
         } else {
             self.drop_stream_at = None;
