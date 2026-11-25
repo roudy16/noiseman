@@ -6,6 +6,7 @@ const FADE_MS = 150;
 
 const state = { kind: 2, vol: 50, playing: false, ...load() };
 let wasm = loadWasm();
+let audioCtx = null;
 let audio = null;
 let suspendTimer = 0;
 
@@ -37,8 +38,7 @@ const buttons = KINDS.map((label, i) => {
   return b;
 });
 
-async function startAudio() {
-  const ctx = new AudioContext({ latencyHint: "playback" });
+async function startAudio(ctx) {
   try {
     wasm ??= loadWasm();
     const [module] = await Promise.all([wasm, ctx.audioWorklet.addModule("worklet.js")]);
@@ -49,16 +49,17 @@ async function startAudio() {
       processorOptions: { module, seed, kind: state.kind },
     });
     node.connect(ctx.destination);
-    return { ctx, node };
+    return node;
   } catch (e) {
     ctx.close();
+    audioCtx = null;
     wasm = null;
     throw e;
   }
 }
 
 function send() {
-  audio?.then(({ node }) => node.port.postMessage({ kind: state.kind, vol: state.playing ? state.vol : 0 }));
+  audio?.then((node) => node.port.postMessage({ kind: state.kind, vol: state.playing ? state.vol : 0 }), () => {});
 }
 
 async function setPlaying(on) {
@@ -66,12 +67,22 @@ async function setPlaying(on) {
   render();
   clearTimeout(suspendTimer);
   try {
-    audio ??= startAudio();
-    const { ctx } = await audio;
+    let resume;
+    if (on) {
+      // Play through iOS's physical silent switch, and create/resume inside the user gesture for WebKit.
+      try {
+        if ("audioSession" in navigator) navigator.audioSession.type = "playback";
+      } catch {}
+      audioCtx ??= new AudioContext({ latencyHint: "playback" });
+      resume = audioCtx.resume();
+      audio ??= startAudio(audioCtx);
+    } else if (!audio) {
+      return;
+    }
+    await (on ? Promise.all([audio, resume]) : audio);
     if (state.playing !== on) return;
-    if (on) await ctx.resume();
     send();
-    if (!on) suspendTimer = setTimeout(() => ctx.suspend(), FADE_MS);
+    if (!on) suspendTimer = setTimeout(() => audioCtx?.suspend(), FADE_MS);
   } catch (e) {
     audio = null;
     state.playing = false;
