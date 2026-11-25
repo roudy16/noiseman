@@ -1,0 +1,24 @@
+# Weekly update PRs, grouped so each ecosystem opens at most one routine PR. Security updates (enabled in the repo's
+# Settings > Security) still arrive as soon as an advisory is published.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      # Vendored with local patches (vendor/, [patch.crates-io]); upgrade by re-vendoring, as AGENTS.md describes.
+      - dependency-name: cpal
+      - dependency-name: pulseaudio
+    groups:
+      cargo:
+        update-types: [minor, patch]
+
+  # Also bumps the SHA (and its version comment) of SHA-pinned actions.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
