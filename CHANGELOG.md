@@ -14,6 +14,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Linux needs glibc 2.34, not 2.35 as stated before: the binaries never needed more, so RHEL 9 and its rebuilds,
   Amazon Linux 2023 and Fedora 35 can run them too.
 
+### Fixed
+
+- At volumes from about 30% up, the volume fade never quite reached its target, so the player kept computing it for
+  every sample: playing now costs about half the CPU it did in the sound code. The level it settled at was inaudibly
+  low (at most 0.0014%).
+
 ## [0.1.1] - 2026-11-25
 
 ### Added

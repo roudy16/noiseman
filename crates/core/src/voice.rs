@@ -24,10 +24,9 @@ impl Voice {
     #[inline]
     pub fn step(&mut self, want: Kind, gain: f32) -> f32 {
         let target = if want == self.playing { gain } else { 0.0 };
-        self.level += (target - self.level) * self.smoothing;
-        if (target - self.level).abs() < 1e-6 {
-            self.level = target;
-        }
+        let next = self.level + (target - self.level) * self.smoothing;
+        // Rounding stalls the fade just short of high targets, so also snap once a step stops changing the level.
+        self.level = if next == self.level || (target - next).abs() < 1e-6 { target } else { next };
         if want != self.playing && self.level < 1e-4 {
             self.playing = want;
         }
@@ -42,10 +41,10 @@ mod tests {
     #[test]
     fn kind_change_fades_through_silence() {
         let mut v = Voice::new(48_000, 1, Kind::White);
-        for _ in 0..4_800 {
+        for _ in 0..9_600 {
             v.step(Kind::White, 1.0);
         }
-        assert!((v.level - 1.0).abs() < 1e-3);
+        assert_eq!(v.level, 1.0, "the fade settles exactly");
         let mut quiet = false;
         for _ in 0..9_600 {
             v.step(Kind::Brown, 1.0);
