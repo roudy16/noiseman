@@ -1,5 +1,5 @@
-# Builds release archives for Linux and macOS when a version tag (v*) is pushed, and publishes them, their checksums
-# and tools/install.sh as a GitHub release. The tag must match the version in Cargo.toml.
+# Builds release archives for Linux, macOS and Windows when a version tag (v*) is pushed, and publishes them, their
+# checksums, tools/install.sh and tools/install.ps1 as a GitHub release. The tag must match the version in Cargo.toml.
 name: Release
 
 on:
@@ -20,6 +20,8 @@ jobs:
           - { target: aarch64-unknown-linux-gnu, os: ubuntu-24.04-arm, container: "ubuntu:22.04" }
           - { target: aarch64-apple-darwin, os: macos-latest }
           - { target: x86_64-apple-darwin, os: macos-latest }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest }
+          - { target: aarch64-pc-windows-msvc, os: windows-11-arm }
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
     steps:
@@ -29,6 +31,11 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends ca-certificates curl git gcc libc6-dev pkg-config libasound2-dev python3
       - uses: actions/checkout@v7
+      # licenses.py; the Windows ARM image does not promise a Python on PATH.
+      - uses: actions/setup-python@v6
+        if: runner.os == 'Windows'
+        with:
+          python-version: "3.x"
       # Third-party action pinned to a commit; bump the SHA (and comment) to update.
       - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
@@ -39,6 +46,7 @@ jobs:
           version=$(cargo pkgid -p noiseman | sed 's/.*[@#]//')
           [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME, Cargo.toml $version"; exit 1; }
       - run: tools/package.sh ${{ matrix.target }}
+        shell: bash
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.target }}
@@ -59,4 +67,4 @@ jobs:
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* tools/install.sh --verify-tag --generate-notes --title "noiseman $GITHUB_REF_NAME"
+        run: gh release create "$GITHUB_REF_NAME" dist/* tools/install.sh tools/install.ps1 --verify-tag --generate-notes --title "noiseman $GITHUB_REF_NAME"

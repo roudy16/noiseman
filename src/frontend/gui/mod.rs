@@ -146,6 +146,13 @@ impl View {
             .with_resizable(false);
         #[cfg(all(unix, not(target_vendor = "apple")))]
         let attrs = winit::platform::wayland::WindowAttributesExtWayland::with_name(attrs, "noiseman", "noiseman");
+        // The icon build.rs embeds as resource 1: title bar (small) and taskbar / Alt-Tab (large).
+        #[cfg(windows)]
+        let attrs = {
+            use winit::platform::windows::{IconExtWindows, WindowAttributesExtWindows};
+            let icon = || winit::window::Icon::from_resource(1, None).ok();
+            attrs.with_window_icon(icon()).with_taskbar_icon(icon())
+        };
         let window = Rc::new(el.create_window(attrs).map_err(|e| format!("cannot create window: {e}"))?);
         let surface = softbuffer::Context::new(window.clone())
             .and_then(|ctx| softbuffer::Surface::new(&ctx, window.clone()))

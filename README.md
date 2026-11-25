@@ -16,9 +16,17 @@ web demo (source `docs/architecture.html`); `DESIGN.md` has the full design.
 
 ## Install
 
-**Supported systems:** Linux (PulseAudio or PipeWire via `pipewire-pulse`), macOS (CoreAudio) and Windows 10 version 1803 or later (WASAPI; build from source for now). The browser demo works on any OS.
+**Supported systems:** Linux (PulseAudio or PipeWire via `pipewire-pulse`), macOS (CoreAudio) and Windows 10 version 1803 or later (WASAPI). The browser demo works on any OS.
 
 ### Prebuilt binary
+
+On Windows (x64, ARM64), in PowerShell. This installs the latest release for your user (no admin) to
+`%LOCALAPPDATA%\Programs\noiseman` with an `nsm` link, adds it to your PATH, adds a Start menu shortcut to the window,
+and lists noiseman in Settings > Apps, whose Uninstall removes all of it:
+
+```powershell
+irm https://github.com/roudy16/noiseman/releases/latest/download/install.ps1 | iex
+```
 
 For Linux (x86_64, arm64) and macOS (Apple Silicon, Intel). This installs the latest release, window included, to
 `~/.local/bin` with an `nsm` link (an existing `nsm` is left alone, with a warning); on Linux it also installs the
@@ -28,15 +36,16 @@ icons and a desktop entry:
 curl -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh | sh
 ```
 
-The script checks the archive's SHA-256, and that the binary runs on this system, before installing.
-`NOISEMAN_INSTALL_DIR` picks another directory and `NOISEMAN_VERSION=v0.1.0` a specific release. You can also download
+Both scripts check the archive's SHA-256, and that the binary runs on this system, before installing.
+`NOISEMAN_INSTALL_DIR` picks another directory and `NOISEMAN_VERSION=v0.1.0` a specific release (on Windows, set
+them with `$env:NOISEMAN_VERSION = 'v0.1.0'` first). You can also download
 an archive from [Releases](https://github.com/roudy16/noiseman/releases) yourself, or use `cargo binstall --git
 https://github.com/roudy16/noiseman noiseman`. The Linux binaries need glibc 2.35 or newer (Ubuntu 22.04, Debian 12,
 Fedora 36) and ALSA's `libasound.so.2`, which desktop systems already have.
 
 ### From source
 
-**Prerequisites:** A Rust toolchain (1.88+, edition 2024; 1.89+ for `--features gui` on Linux). On Linux, you also need `pkg-config` and ALSA development headers (`libasound2-dev` on Debian/Ubuntu, `alsa-lib-devel` on Fedora, `alsa-lib` on Arch) for cpal's ALSA fallback.
+**Prerequisites:** A Rust toolchain (1.88+, edition 2024; 1.89+ for `--features gui` on Linux). On Linux, you also need `pkg-config` and ALSA development headers (`libasound2-dev` on Debian/Ubuntu, `alsa-lib-devel` on Fedora, `alsa-lib` on Arch) for cpal's ALSA fallback. On Windows, you need the MSVC toolchain: Visual Studio or its Build Tools with the "Desktop development with C++" workload, which includes the Windows SDK's `rc.exe` for the embedded icon.
 
 Clone the repository and install `noiseman` to `~/.cargo/bin`:
 

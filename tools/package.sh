@@ -1,17 +1,30 @@
 #!/usr/bin/env bash
-# Build the release archive for one target: target/dist/noiseman-<target>.tar.gz and its .sha256.
-# The binary has the `gui` feature, since users of a prebuilt binary cannot turn it on later.
+# Build the release archive for one target into target/dist with its .sha256: noiseman-<target>.tar.gz, or .zip for
+# Windows. The binary has the `gui` feature, since users of a prebuilt binary cannot turn it on later.
 set -euo pipefail
 target=${1:?usage: tools/package.sh TARGET}
 cd "$(dirname "$0")/.."
 
-cargo build --release --locked --features gui --target "$target"
 name=noiseman-$target
 dist=target/dist
-rm -rf "${dist:?}/$name" "$dist/$name.tar.gz" "$dist/$name.tar.gz.sha256"
+out=target/$target/release
+windows=false
+[[ $target == *windows* ]] && windows=true
+rm -rf "${dist:?}/$name" "$dist/$name".{tar.gz,zip}{,.sha256}
 mkdir -p "$dist/$name"
-cp "target/$target/release/noiseman" LICENSE README.md "$dist/$name/"
-python3 tools/licenses.py "$target" > "$dist/$name/THIRD-PARTY-LICENSES.txt"
+
+if $windows; then
+    # noiseman-gui.exe: the same program linked for the Windows subsystem, so the Start Menu shortcut opens the window
+    # without a console beside it (run under that name with no arguments, it opens the window).
+    cargo rustc --release --locked --features gui --target "$target" --bin noiseman -- \
+        -C link-arg=/SUBSYSTEM:WINDOWS -C link-arg=/ENTRY:mainCRTStartup
+    cp "$out/noiseman.exe" "$dist/$name/noiseman-gui.exe"
+fi
+cargo build --release --locked --features gui --target "$target"
+cp "$out/noiseman$($windows && echo .exe)" LICENSE README.md "$dist/$name/"
+# The first interpreter that runs: on Windows, `python3` may be the Microsoft Store stub, which only prints a hint.
+for python in python3 python py ""; do "$python" -c "" 2>/dev/null && break; done
+"${python:?no working Python found}" tools/licenses.py "$target" > "$dist/$name/THIRD-PARTY-LICENSES.txt"
 if [[ $target == *linux* ]]; then
     # Icons and desktop entry for install.sh: the window and tray look the icon up by name.
     install -Dm644 assets/noiseman.svg "$dist/$name/share/icons/scalable/apps/noiseman.svg"
@@ -20,9 +33,18 @@ if [[ $target == *linux* ]]; then
     done
     install -m644 assets/noiseman.desktop "$dist/$name/share/noiseman.desktop"
 fi
-# COPYFILE_DISABLE keeps macOS tar from adding ._ metadata files.
-COPYFILE_DISABLE=1 tar -C "$dist" -czf "$dist/$name.tar.gz" "$name"
+
+if $windows; then
+    archive=$name.zip
+    # Windows opens zip archives natively (Expand-Archive, Explorer); the icon is embedded in both binaries. Windows'
+    # own bsdtar (Git Bash's tar is GNU tar), since Windows PowerShell's Compress-Archive writes \ into entry names.
+    (cd "$dist" && "$SYSTEMROOT/System32/tar.exe" -a -cf "$archive" "$name")
+else
+    archive=$name.tar.gz
+    # COPYFILE_DISABLE keeps macOS tar from adding ._ metadata files.
+    COPYFILE_DISABLE=1 tar -C "$dist" -czf "$dist/$archive" "$name"
+fi
 sum=$(command -v sha256sum || echo "shasum -a 256")
-(cd "$dist" && $sum "$name.tar.gz" > "$name.tar.gz.sha256")
+(cd "$dist" && $sum "$archive" > "$archive.sha256")
 rm -rf "${dist:?}/$name"
-echo "$dist/$name.tar.gz"
+echo "$dist/$archive"

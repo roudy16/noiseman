@@ -14,6 +14,10 @@ pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.tar.gz"
 bin-dir = "{ name }-{ target }/{ bin }{ binary-ext }"
 pkg-fmt = "tgz"
 
+[package.metadata.binstall.overrides.'cfg(windows)']
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.zip"
+pkg-fmt = "zip"
+
 [dependencies]
 noiseman-core = { path = "crates/core" }
 cpal = { version = "0.18", features = ["pulseaudio"] }
@@ -32,6 +36,10 @@ windows-sys = { version = "0.61", features = [
     "Win32_System_Console",
     "Win32_System_Threading",
 ] }
+
+# Embeds the icon and version info in noiseman.exe (build.rs); no default features, so no toml parser.
+[target.'cfg(windows)'.build-dependencies]
+winresource = { version = "0.1", default-features = false }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 ksni = { version = "0.3.7", optional = true, default-features = false, features = ["blocking", "tokio"] }
