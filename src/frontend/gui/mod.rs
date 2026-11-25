@@ -182,14 +182,16 @@ struct Canvas<'a> {
     width: i32,
     height: i32,
     scale: i32,
+    origin: (i32, i32),
     dy: i32,
 }
 
 impl Canvas<'_> {
     fn rect(&mut self, Rect { x, y, w, h }: Rect, color: u32) {
         let y = y + self.dy;
-        let (x0, y0) = ((x * self.scale).max(0), (y * self.scale).max(0));
-        let (x1, y1) = (((x + w) * self.scale).min(self.width), ((y + h) * self.scale).min(self.height));
+        let (ox, oy) = self.origin;
+        let (x0, y0) = ((ox + x * self.scale).max(0), (oy + y * self.scale).max(0));
+        let (x1, y1) = ((ox + (x + w) * self.scale).min(self.width), (oy + (y + h) * self.scale).min(self.height));
         if x0 >= x1 {
             return;
         }
@@ -230,11 +232,19 @@ impl Canvas<'_> {
     }
 }
 
+/// Where the WIN_W x WIN_H layout starts in a `width` x `height` window: centered, for a window the system sized
+/// differently (a tiling compositor, a refused resize). Negative by a pixel or so in a window Wayland made a little
+/// short, which clips the margins evenly.
+fn origin(width: i32, height: i32, scale: i32) -> (i32, i32) {
+    ((width - WIN_W * scale) / 2, (height - WIN_H * scale) / 2)
+}
+
 /// Paints the whole window at an integer scale into a `width` x `height` buffer.
 fn paint(pixels: &mut [u32], width: i32, height: i32, scale: i32, s: &State, tray: bool, error: Option<&str>) {
     pixels.fill(BG);
     let t = theme(s.kind);
-    let mut c = Canvas { pixels, width, height, scale, dy: shift(error.is_some()) };
+    let origin = origin(width, height, scale);
+    let mut c = Canvas { pixels, width, height, scale, origin, dy: shift(error.is_some()) };
     let card = Rect { h: CARD.h + if error.is_some() { ERR_H } else { 0 }, ..CARD };
     let right = IN_X + IN_W;
     let level = if s.muted { t.track } else { t.accent };
@@ -549,8 +559,10 @@ impl ApplicationHandler<Event> for App {
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {
-                let s = self.view.as_ref().map_or(1, View::scale);
-                self.cursor = (position.x as i32 / s, position.y as i32 / s);
+                let Some(v) = &self.view else { return };
+                let (s, size) = (v.scale(), v.window.inner_size());
+                let (ox, oy) = origin(size.width as i32, size.height as i32, s);
+                self.cursor = ((position.x as i32 - ox).div_euclid(s), (position.y as i32 - oy).div_euclid(s));
                 if self.dragging {
                     self.set_vol(vol_at(self.cursor.0));
                     self.refresh();
@@ -697,6 +709,20 @@ mod tests {
             assert_eq!(whole_scale(factor), scale, "{factor}");
         }
         assert_eq!(whole_scale(2.5), 3);
+    }
+
+    #[test]
+    fn centers_in_a_larger_window() {
+        let s = State { kind: Kind::Brown, vol: 50, muted: false, error: None };
+        let (w, h) = (WIN_W * 2 + 41, WIN_H * 2 + 30);
+        let mut px = vec![0; (w * h) as usize];
+        paint(&mut px, w, h, 2, &s, true, None);
+        let lit = |x: i32| (0..h).any(|y| px[(y * w + x) as usize] != BG);
+        let left = (0..w).find(|&x| lit(x)).unwrap();
+        let right = (0..w).rev().find(|&x| lit(x)).unwrap();
+        assert!((left - (w - 1 - right)).abs() <= 1, "margins {left} and {}", w - 1 - right);
+        assert_eq!(origin(w, h, 2), (20, 15));
+        assert_eq!(origin(WIN_W * 2 - 2, WIN_H * 2, 2), (-1, 0));
         assert_eq!(window_size(2.5), PhysicalSize::new(WIN_W as u32 * 3, WIN_H as u32 * 3));
     }
 }
