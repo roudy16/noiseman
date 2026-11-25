@@ -10,6 +10,28 @@ WebAssembly for a browser demo (`web/`). See `DESIGN.md`.
 https://roudy16.github.io/noiseman/architecture/ (diagrams of the daemon, the sound core and the web demo;
 source `docs/architecture.html`)
 
+## Install
+
+**Supported systems:** Linux (PulseAudio or PipeWire via `pipewire-pulse`) and macOS (CoreAudio). Windows is not yet supported for the native app, though the browser demo works on any OS.
+
+**Prerequisites:** A Rust toolchain (1.85+, edition 2024). On Linux, you also need `pkg-config` and ALSA development headers (`libasound2-dev` on Debian/Ubuntu, `alsa-lib-devel` on Fedora, `alsa-lib` on Arch) for cpal's ALSA fallback.
+
+Clone the repository and install `noiseman` to `~/.cargo/bin`:
+
+```sh
+git clone https://github.com/roudy16/noiseman.git
+cd noiseman
+cargo install --path .
+```
+
+To include the optional window and (on Linux) system-tray icon:
+
+```sh
+cargo install --path . --features gui
+```
+
+On Linux with `just`, you can run `just install` instead to install `noiseman` (plus an `nsm` alias) to `~/.local/bin`, along with hicolor icons and a `.desktop` entry.
+
 ## Usage
 
 - `noiseman`: terminal UI. `1`–`5`, `↑`/`↓` or Tab noise, `←`/`→` volume, `m`/Space mute,
@@ -26,10 +48,7 @@ source `docs/architecture.html`)
   system tray (StatusNotifierItem, e.g. COSMIC or KDE), closing the window
   hides it to the tray; without a tray, closing it stops the player.
 
-## Building
-
-Prerequisites: a Rust toolchain; on Linux also `libasound2-dev` (cpal's ALSA
-fallback). Audio uses PulseAudio/pipewire-pulse when available.
+## Development
 
 All dev workflows go through `just` (run `just` alone to list recipes):
 
