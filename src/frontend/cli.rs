@@ -30,6 +30,8 @@ Notes:
     (default: brown, 50%, playing). `status`, `mute` and `stop` never start it.
   - Output format: `<Kind> <vol>% <playing|muted>` (or `stopped` / `not running`).
   - Exit status: 0 on success, 1 on error (errors go to stderr, e.g. `status` when stopped).
+    A command that asked for sound (play, unmute, toggle to unmuted, or any command that started
+    the daemon) and left the player muted by an audio error exits 1, printing the state to stderr.
   - Runtime files: $XDG_RUNTIME_DIR/noiseman.{sock,lock,log} (fallback: $TMPDIR/noiseman-<uid>/,
     or %LOCALAPPDATA%\\noiseman on Windows).";
 
@@ -88,7 +90,7 @@ fn report(cmds: &[Command], client: &mut Client) -> Result<(), String> {
         println!("stopped");
         return Ok(());
     }
-    let wanted_sound = cmds.iter().any(|c| matches!(c, Command::Mute(false) | Command::ToggleMute));
+    let wanted_sound = client.started || cmds.iter().any(|c| matches!(c, Command::Mute(false) | Command::ToggleMute));
     if wanted_sound && s.muted && s.error.is_some() {
         return Err(describe(&s));
     }

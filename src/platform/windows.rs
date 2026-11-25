@@ -26,6 +26,23 @@ pub fn terminal_truecolor() -> bool {
     }
 }
 
+/// A message box when stderr goes nowhere: `noiseman-gui.exe`, linked without a console, started from the Start menu.
+#[cfg(feature = "gui")]
+pub fn alert_if_no_console(msg: &str) {
+    use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
+    use windows_sys::Win32::System::Console::STD_ERROR_HANDLE;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{MB_ICONERROR, MB_OK, MessageBoxW};
+
+    let wide = |s: &str| s.encode_utf16().chain([0]).collect::<Vec<u16>>();
+    // SAFETY: the std handle needs no closing; both strings are NUL-terminated and outlive the blocking call.
+    unsafe {
+        let err = GetStdHandle(STD_ERROR_HANDLE);
+        if err.is_null() || err == INVALID_HANDLE_VALUE {
+            MessageBoxW(std::ptr::null_mut(), wide(msg).as_ptr(), wide("noiseman").as_ptr(), MB_OK | MB_ICONERROR);
+        }
+    }
+}
+
 /// `$XDG_RUNTIME_DIR` if set (as on Unix, so tests and gates can run a private daemon), else `%LOCALAPPDATA%\noiseman`,
 /// whose inherited ACL admits only the user, SYSTEM and administrators.
 pub fn runtime_dir() -> Result<PathBuf, String> {

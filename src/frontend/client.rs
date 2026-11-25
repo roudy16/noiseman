@@ -16,6 +16,8 @@ pub struct Client {
     pub receiver: Receiver,
     /// Set when the daemon that was already running speaks an incompatible protocol, or it could not be checked.
     pub warning: Option<String>,
+    /// This connection started the daemon, which plays from the start.
+    pub started: bool,
 }
 
 pub struct Sender(UnixStream);
@@ -35,7 +37,8 @@ impl Client {
             Err(e) => return Err(format!("cannot connect to {}: {e}", path.display())),
         };
         let writer = stream.try_clone().map_err(|e| format!("cannot clone socket: {e}"))?;
-        let mut client = Client { sender: Sender(writer), receiver: Receiver(BufReader::new(stream)), warning: None };
+        let mut client =
+            Client { sender: Sender(writer), receiver: Receiver(BufReader::new(stream)), warning: None, started };
         // One we just started runs this binary. Only a broken connection should fail the command, and the request
         // that follows reports that by itself.
         if !started {

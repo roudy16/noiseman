@@ -1,3 +1,8 @@
+// Modified by noiseman (2026-11-25) from pulseaudio 0.3.2, under the MIT License (see ../LICENSE.md).
+// Change: socket_path_from_env tries each location in turn (upstream returned None at the first missing one),
+// looks for $PULSE_RUNTIME_PATH/native (not .../pulse/native), and makes $PULSE_SERVER the only server when set,
+// as libpulse does (upstream issue #24).
+
 //! A pure Rust implementation of the PulseAudio protocol, suitable for writing
 //! servers and clients.
 
@@ -23,39 +28,45 @@ mod client;
 pub mod protocol;
 pub use client::*;
 
-/// Attempts to determine the socket path from the runtime environment, checking
-/// the following locations in order:
-///   - $PULSE_SERVER
-///   - $PULSE_RUNTIME_PATH/pulse/native
+/// Attempts to determine the socket path from the runtime environment, as
+/// libpulse does. If $PULSE_SERVER is set, it is the only server: a 'unix:'
+/// path (or a bare absolute path) is used if it exists. Otherwise the first
+/// of these that exists is used:
+///   - $PULSE_RUNTIME_PATH/native
 ///   - $XDG_RUNTIME_DIR/pulse/native
 ///
 /// Returns None if no socket can be found or if $PULSE_SERVER points to a
 /// remote server, i.e. starts with a prefix other than 'unix:'.
 pub fn socket_path_from_env() -> Option<PathBuf> {
-    let paths = std::env::var("PULSE_SERVER")
-        .ok()
-        .filter(|s| s.starts_with("unix:"))
-        .map(|s| PathBuf::from(&s[5..]))
-        .into_iter()
-        .chain(
-            std::env::var("PULSE_RUNTIME_PATH")
-                .ok()
-                .map(|s| PathBuf::from(s).join("pulse/native")),
-        )
-        .chain(
-            std::env::var("XDG_RUNTIME_DIR")
-                .ok()
-                .map(|s| PathBuf::from(s).join("pulse/native")),
-        );
+    let var = |name| std::env::var(name).ok().filter(|v: &String| !v.is_empty());
+    socket_path_from(
+        var("PULSE_SERVER"),
+        var("PULSE_RUNTIME_PATH"),
+        var("XDG_RUNTIME_DIR"),
+    )
+}
 
-    for path in paths {
-        let stat = std::fs::metadata(&path).ok()?;
-        if !stat.permissions().readonly() {
-            return Some(path);
-        }
+fn socket_path_from(
+    server: Option<String>,
+    runtime_path: Option<String>,
+    xdg_runtime_dir: Option<String>,
+) -> Option<PathBuf> {
+    let usable =
+        |path: &PathBuf| std::fs::metadata(path).is_ok_and(|m| !m.permissions().readonly());
+
+    if let Some(server) = server {
+        let path = server.strip_prefix("unix:").unwrap_or(&server);
+        let path = PathBuf::from(path);
+        return (path.is_absolute() && usable(&path)).then_some(path);
     }
 
-    None
+    [
+        runtime_path.map(|p| PathBuf::from(p).join("native")),
+        xdg_runtime_dir.map(|p| PathBuf::from(p).join("pulse/native")),
+    ]
+    .into_iter()
+    .flatten()
+    .find(usable)
 }
 
 /// Attempts to find the authentication cookie from the environment, checking
@@ -76,6 +87,39 @@ pub fn cookie_path_from_env() -> Option<PathBuf> {
         .chain(std::iter::once(home.join(".pulse-cookie")));
 
     paths.find(|path| path.exists())
+}
+
+#[cfg(test)]
+mod socket_path_test {
+    use super::socket_path_from as find;
+
+    fn s(path: &std::path::Path) -> Option<String> {
+        Some(path.to_str().unwrap().to_owned())
+    }
+
+    #[test]
+    fn socket_path_from_tries_each_location() {
+        let dir = std::env::temp_dir().join(format!("pa-socket-test-{}", std::process::id()));
+        let (runtime, xdg, missing) = (dir.join("runtime"), dir.join("xdg"), dir.join("missing"));
+        let (runtime_sock, xdg_sock) = (runtime.join("native"), xdg.join("pulse/native"));
+        std::fs::create_dir_all(&runtime).unwrap();
+        std::fs::create_dir_all(xdg.join("pulse")).unwrap();
+        std::fs::write(&xdg_sock, "").unwrap();
+
+        assert_eq!(find(None, s(&runtime), s(&xdg)), Some(xdg_sock.clone()));
+        assert_eq!(find(None, s(&missing), s(&xdg)), Some(xdg_sock.clone()));
+        std::fs::write(&runtime_sock, "").unwrap();
+        assert_eq!(find(None, s(&runtime), s(&xdg)), Some(runtime_sock));
+
+        let unix = |p: &std::path::Path| Some(format!("unix:{}", p.display()));
+        let tcp = Some("tcp:localhost".to_owned());
+        assert_eq!(find(unix(&xdg_sock), None, None), Some(xdg_sock.clone()));
+        assert_eq!(find(s(&xdg_sock), s(&runtime), None), Some(xdg_sock));
+        assert_eq!(find(unix(&missing), s(&runtime), s(&xdg)), None);
+        assert_eq!(find(tcp, s(&runtime), s(&xdg)), None);
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }
 
 #[cfg(test)]

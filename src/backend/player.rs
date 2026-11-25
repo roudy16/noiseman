@@ -66,7 +66,7 @@ impl Player {
                 self.error = None;
             }
             Err(e) => {
-                eprintln!("noiseman: cannot start audio: {e}");
+                log!("noiseman: cannot start audio: {e}");
                 self.error = Some(format!("audio error: {e}"));
                 self.muted = true;
                 self.apply_gain();

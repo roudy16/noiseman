@@ -20,13 +20,14 @@ use std::thread;
 
 use font8x8::legacy::BASIC_LEGACY;
 use winit::application::ApplicationHandler;
-use winit::dpi::LogicalSize;
+use winit::dpi::{LogicalSize, PhysicalSize};
 use winit::event::{ElementState, KeyEvent, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 use winit::window::{Window, WindowId};
 
 use super::client::{Client, Sender};
+use crate::platform;
 use crate::protocol::{Command, Kind, State};
 
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
@@ -47,6 +48,12 @@ struct TrayState {
     shown: bool,
     muted: bool,
     kind: Kind,
+}
+
+/// An error that ends the window, also shown in a message box where stderr goes nowhere (`noiseman-gui.exe`).
+fn fail(e: &str) {
+    eprintln!("noiseman: {e}");
+    platform::alert_if_no_console(e);
 }
 
 fn send_or_log(proxy: &EventLoopProxy<Event>, ev: Event, what: &str) {
@@ -287,6 +294,30 @@ fn paint(pixels: &mut [u32], width: i32, height: i32, scale: i32, s: &State, tra
     }
 }
 
+/// The whole scale nearest the OS's: 2.5 (Windows 250%) draws at 3, and 1.25 at 1 rather than 2, a window 60% larger
+/// than asked.
+fn whole_scale(scale_factor: f64) -> i32 {
+    (scale_factor.round() as i32).max(1)
+}
+
+/// The window's size in physical pixels, so paint() fills it at a whole scale with no band left over.
+fn window_size(scale_factor: f64) -> PhysicalSize<u32> {
+    let s = whole_scale(scale_factor) as u32;
+    PhysicalSize::new(WIN_W as u32 * s, WIN_H as u32 * s)
+}
+
+/// On X11 and Wayland winit pins a fixed-size window with min = max = its size, which the window manager enforces, so
+/// the limits move with it. Windows has no such limits, and setting them during a DPI change would resize the window
+/// to its old size under winit's own resize.
+#[cfg_attr(not(all(unix, not(target_vendor = "apple"))), allow(unused_variables))]
+fn set_size_limits(window: &Window, size: PhysicalSize<u32>) {
+    #[cfg(all(unix, not(target_vendor = "apple")))]
+    {
+        window.set_min_inner_size(Some(size));
+        window.set_max_inner_size(Some(size));
+    }
+}
+
 struct View {
     // Declared first so it drops before the window it draws on.
     surface: softbuffer::Surface<Rc<Window>, Rc<Window>>,
@@ -312,12 +343,18 @@ impl View {
         let surface = softbuffer::Context::new(window.clone())
             .and_then(|ctx| softbuffer::Surface::new(&ctx, window.clone()))
             .map_err(|e| format!("cannot create framebuffer: {e}"))?;
+        let size = window_size(window.scale_factor());
+        set_size_limits(&window, size);
+        let _ = window.request_inner_size(size);
         Ok(View { surface, window })
     }
 
+    /// Wayland sizes windows in whole logical pixels, so at a fractional scale the window can come out up to `s`
+    /// pixels short of `window_size`; paint() clips that much of the margin. A window kept smaller draws smaller.
     fn scale(&self) -> i32 {
         let size = self.window.inner_size();
-        (size.width as i32 / WIN_W).min(size.height as i32 / WIN_H).max(1)
+        let s = whole_scale(self.window.scale_factor());
+        ((size.width as i32 + s) / WIN_W).min((size.height as i32 + s) / WIN_H).max(1)
     }
 }
 
@@ -410,7 +447,7 @@ impl App {
         match View::open(el) {
             Ok(v) => self.view = Some(v),
             Err(e) => {
-                eprintln!("noiseman: {e}");
+                fail(&e);
                 el.exit();
             }
         }
@@ -448,7 +485,7 @@ impl ApplicationHandler<Event> for App {
             Event::Reply(Err(e)) => self.problem = Some(e),
             Event::PlayerGone(why) => {
                 if let Some(e) = why {
-                    eprintln!("noiseman: {e}");
+                    fail(&e);
                     self.failed = true;
                 }
                 el.exit();
@@ -469,6 +506,15 @@ impl ApplicationHandler<Event> for App {
     fn window_event(&mut self, el: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => self.close(el),
+            WindowEvent::ScaleFactorChanged { scale_factor, mut inner_size_writer } => {
+                let size = window_size(scale_factor);
+                if let Some(v) = &self.view {
+                    set_size_limits(&v.window, size);
+                }
+                if let Err(e) = inner_size_writer.request_inner_size(size) {
+                    eprintln!("noiseman: cannot resize window for scale {scale_factor}: {e}");
+                }
+            }
             WindowEvent::RedrawRequested => {
                 if let Err(e) = self.draw() {
                     eprintln!("noiseman: redraw failed: {e}");
@@ -527,26 +573,26 @@ pub fn run() -> ExitCode {
     let event_loop = match EventLoop::with_user_event().build() {
         Ok(el) => el,
         Err(e) => {
-            eprintln!("noiseman: cannot start event loop: {e}");
+            fail(&format!("cannot start event loop: {e}"));
             return ExitCode::FAILURE;
         }
     };
     let proxy = event_loop.create_proxy();
-    let Client { mut sender, mut receiver, warning } = match Client::connect(true) {
+    let Client { mut sender, mut receiver, warning, .. } = match Client::connect(true) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("noiseman: {e}");
+            fail(&e);
             return ExitCode::FAILURE;
         }
     };
     let first = match sender.send(Command::Watch).and_then(|()| receiver.recv()) {
         Ok(Some(Ok(s))) => s,
         Ok(Some(Err(e))) | Err(e) => {
-            eprintln!("noiseman: {e}");
+            fail(&e);
             return ExitCode::FAILURE;
         }
         Ok(None) => {
-            eprintln!("noiseman: player stopped");
+            fail("player stopped");
             return ExitCode::FAILURE;
         }
     };
@@ -578,7 +624,7 @@ pub fn run() -> ExitCode {
     // The window is created later, in `resumed`.
     tray::spawn(app.proxy.clone(), TrayState { shown: true, ..app.tray_state() });
     if let Err(e) = event_loop.run_app(&mut app) {
-        eprintln!("noiseman: event loop failed: {e}");
+        fail(&format!("event loop failed: {e}"));
         return ExitCode::FAILURE;
     }
     if app.failed { ExitCode::FAILURE } else { ExitCode::SUCCESS }
@@ -596,16 +642,31 @@ mod tests {
             ("pink-muted", state(Kind::Pink, 30, true, None), false),
             ("blue-error", state(Kind::Blue, 75, false, Some("audio device lost")), true),
         ];
-        let (w, h) = (WIN_W * 2, WIN_H * 2);
-        let mut px = vec![0; (w * h) as usize];
-        for (name, s, tray) in frames {
-            paint(&mut px, w, h, 2, &s, tray, s.error.as_deref());
-            assert!(px.contains(&theme(s.kind).accent), "{name}: no accent");
-            assert!(px.contains(&if s.error.is_some() { RED } else { FG }), "{name}: no text");
-            let Some(dir) = std::env::var_os("NOISEMAN_GUI_SNAPSHOT") else { continue };
-            let mut ppm = format!("P6 {w} {h} 255\n").into_bytes();
-            ppm.extend(px.iter().flat_map(|p| [(p >> 16) as u8, (p >> 8) as u8, *p as u8]));
-            std::fs::write(std::path::Path::new(&dir).join(format!("gui-{name}.ppm")), ppm).expect("write snapshot");
+        for scale in [2, 3] {
+            let (w, h) = (WIN_W * scale, WIN_H * scale);
+            let mut px = vec![0; (w * h) as usize];
+            for (name, s, tray) in &frames {
+                paint(&mut px, w, h, scale, s, *tray, s.error.as_deref());
+                assert!(px.contains(&theme(s.kind).accent), "{name}@{scale}x: no accent");
+                assert!(px.contains(&if s.error.is_some() { RED } else { FG }), "{name}@{scale}x: no text");
+                let card_right = ((CARD.x + CARD.w) * scale - 1) as usize;
+                assert_eq!(px[(CARD.y + 20) as usize * scale as usize * w as usize + card_right], theme(s.kind).track);
+                let Some(dir) = std::env::var_os("NOISEMAN_GUI_SNAPSHOT") else { continue };
+                let mut ppm = format!("P6 {w} {h} 255\n").into_bytes();
+                ppm.extend(px.iter().flat_map(|p| [(p >> 16) as u8, (p >> 8) as u8, *p as u8]));
+                let file = std::path::Path::new(&dir).join(format!("gui-{name}-{scale}x.ppm"));
+                std::fs::write(file, ppm).expect("write snapshot");
+            }
         }
+    }
+
+    #[test]
+    fn whole_scale_is_nearest() {
+        for (factor, scale) in [(0.0, 1), (f64::NAN, 1), (1.0, 1), (1.25, 1), (1.5, 2), (1.75, 2), (2.0, 2), (2.25, 2)]
+        {
+            assert_eq!(whole_scale(factor), scale, "{factor}");
+        }
+        assert_eq!(whole_scale(2.5), 3);
+        assert_eq!(window_size(2.5), PhysicalSize::new(WIN_W as u32 * 3, WIN_H as u32 * 3));
     }
 }

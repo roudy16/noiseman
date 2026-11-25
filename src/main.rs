@@ -24,7 +24,7 @@ fn main() -> ExitCode {
             }
         };
         if let Err(e) = backend::serve(muted) {
-            eprintln!("noiseman: {e}");
+            backend::log!("noiseman: {e}");
             return ExitCode::FAILURE;
         }
         return ExitCode::SUCCESS;

@@ -12,6 +12,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `noiseman --version` (or `-V`, or `version`) prints the version.
 - The protocol has its own semver version, 0.1.0. Commands, the terminal UI and the window warn when the running
   player's protocol is incompatible, and say to run `noiseman stop` to restart it.
+- The player's log, `noiseman.log`, starts each run with the version and protocol, and timestamps every line (UTC).
+- On Windows, the window (`noiseman-gui.exe`, which has no console) shows an error that stops it in a message box.
 
 ### Changed
 
@@ -35,6 +37,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Linux: playback follows a new default output, such as headphones chosen in the sound settings; it stayed on the
+  previous device.
 - The installers stop a running player before replacing the binary, so an upgrade no longer leaves the old version
   playing.
 - `noiseman help` says the window needs the gui build instead of `--features gui`, and lists the noises in the new
@@ -42,8 +46,16 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `noiseman gui` in a build without the window says how to get one, instead of rejecting `gui` as an unknown command.
 - `noiseman` (or `noiseman tui`) run without a terminal, as from a launcher or a pipe, says it needs one and exits,
   instead of starting the player.
+- On Linux with no PulseAudio or pipewire-pulse server, the player says `no PulseAudio server` (and its log asks
+  whether it is running) instead of an ALSA error. A command that was meant to start sound, including any command
+  that started the player, now exits 1 when it could not play (`vol` and `kind` exited 0).
 - The player no longer keeps the directory it was started from in use (which could keep a drive from unmounting); it
   runs from the runtime dir.
+- At a fractional display scale (such as 250% on Windows) the window no longer leaves an empty band on the right and
+  bottom: it is sized to the nearest whole scale (3x at 250%), and again when moved to a screen with another scale.
+- On Linux the player finds the PulseAudio (or PipeWire) server where libpulse does: with `PULSE_RUNTIME_PATH` set it
+  looks for `$PULSE_RUNTIME_PATH/native`, then `$XDG_RUNTIME_DIR/pulse/native`, instead of giving up after the first
+  missing location and falling back to ALSA.
 
 ## [0.1.0] - 2026-11-25
 

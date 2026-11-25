@@ -71,7 +71,7 @@ fn exec() -> Result<Option<String>, String> {
     if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
         return Err("the terminal UI needs a terminal; try `noiseman play` or `noiseman gui`".into());
     }
-    let Client { mut sender, mut receiver, warning } = Client::connect(true)?;
+    let Client { mut sender, mut receiver, warning, .. } = Client::connect(true)?;
     sender.send(Command::Watch)?;
     let (tx, rx) = mpsc::channel();
     let replies = tx.clone();

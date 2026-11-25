@@ -1,3 +1,9 @@
+// Modified by noiseman (2026-11-25) from cpal 0.18.2, under the Apache License 2.0 (see ../../../LICENSE).
+// Change: `Device::Sink` gains `is_default` (true only from `default_output_device`), and an output stream on the
+// default sink is created with no sink index, so the server routes it to the default sink and moves it when the
+// default changes (PipeWire pins a stream created with an index). Enumerated sinks stay pinned. The stream
+// line is marked "noiseman patch".
+
 use std::{
     ffi::CString,
     fmt,
@@ -174,6 +180,7 @@ impl HostTrait for Host {
             .map(|sink_info| Device::Sink {
                 client: self.client.clone(),
                 info: sink_info,
+                is_default: false,
             })
             .chain(sources.into_iter().map(|source_info| Device::Source {
                 client: self.client.clone(),
@@ -206,6 +213,7 @@ impl HostTrait for Host {
         Some(Device::Sink {
             client: self.client.clone(),
             info: sink_info,
+            is_default: true,
         })
     }
 }
@@ -216,6 +224,7 @@ pub enum Device {
     Sink {
         client: pulseaudio::Client,
         info: protocol::SinkInfo,
+        is_default: bool,
     },
     Source {
         client: pulseaudio::Client,
@@ -416,7 +425,12 @@ impl DeviceTrait for Device {
         D: FnMut(&mut Data, &OutputCallbackInfo) + Send + 'static,
         E: FnMut(Error) + Send + 'static,
     {
-        let Device::Sink { client, info } = self else {
+        let Device::Sink {
+            client,
+            info,
+            is_default,
+        } = self
+        else {
             return Err(Error::with_message(
                 ErrorKind::UnsupportedOperation,
                 "Device does not support output",
@@ -453,7 +467,9 @@ impl DeviceTrait for Device {
         let adjust_latency = matches!(config.buffer_size, BufferSize::Fixed(_));
 
         let params = protocol::PlaybackStreamParams {
-            sink_index: Some(info.index),
+            // noiseman patch: no index for the default sink, so the server routes the stream and moves it with
+            // the default.
+            sink_index: (!is_default).then_some(info.index),
             sample_spec,
             channel_map,
             buffer_attr,

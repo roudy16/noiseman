@@ -10,6 +10,7 @@
 //!   so (`COLORTERM`, `TERM`); callers check those variables and `NO_COLOR` themselves.
 //! - [`net`]: `UnixListener` and `UnixStream`, std's on Unix and the same subset of their API on Windows (AF_UNIX,
 //!   Windows 10 1803+), which std lacks there.
+//! - [`alert_if_no_console`] (`gui`): shows an error in a message box when stderr goes nowhere (Windows only).
 
 #[cfg(unix)]
 mod unix;
@@ -24,6 +25,8 @@ use windows as imp;
 #[cfg(not(any(unix, windows)))]
 compile_error!("noiseman supports Unix (Linux, macOS) and Windows");
 
+#[cfg(feature = "gui")]
+pub use imp::alert_if_no_console;
 pub use imp::{net, restrict_to_owner, runtime_dir, spawn_detached, terminal_truecolor};
 
 #[cfg(test)]

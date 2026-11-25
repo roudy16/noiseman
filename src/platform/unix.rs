@@ -41,6 +41,10 @@ pub fn terminal_truecolor() -> bool {
     false
 }
 
+/// Nothing to do: a window started from a desktop entry has its stderr in the session's journal.
+#[cfg(feature = "gui")]
+pub fn alert_if_no_console(_msg: &str) {}
+
 /// Mode 0600, though the runtime dir is private already.
 pub fn restrict_to_owner(path: &Path) -> io::Result<()> {
     fs::set_permissions(path, fs::Permissions::from_mode(0o600))
