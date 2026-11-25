@@ -2,7 +2,7 @@
 Type=Application
 Name=noiseman
 Comment=Noise generator (white, pink, brown, blue, violet)
-Exec=/home/roudy/.local/bin/noiseman
+Exec=@BIN@
 Icon=noiseman
 Terminal=true
 Categories=AudioVideo;Audio;

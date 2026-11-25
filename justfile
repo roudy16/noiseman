@@ -59,7 +59,8 @@ install:
     ln -sfn noiseman ~/.local/bin/nsm
     install -Dm644 assets/noiseman.svg ~/.local/share/icons/hicolor/scalable/apps/noiseman.svg
     for s in 48 64 128 256; do install -Dm644 assets/noiseman-$s.png ~/.local/share/icons/hicolor/${s}x${s}/apps/noiseman.png; done
-    sed "s|/home/roudy|$HOME|g" assets/noiseman.desktop > ~/.local/share/applications/noiseman.desktop
+    mkdir -p ~/.local/share/applications
+    sed "s|@BIN@|$HOME/.local/bin/noiseman|g" assets/noiseman.desktop > ~/.local/share/applications/noiseman.desktop
     -update-desktop-database ~/.local/share/applications
 
 # build the web demo (static files) into target/web
