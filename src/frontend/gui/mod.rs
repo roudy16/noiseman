@@ -370,6 +370,10 @@ struct App {
     mods: ModifiersState,
     dragging: bool,
     failed: bool,
+    /// Set by a scale change, until one resize that left the window off its whole scale has been undone.
+    refit: bool,
+    /// The scale factor the window was reopened for, until it fits; a compositor that ignores sizes cannot cause a loop.
+    reopened_at: Option<f64>,
 }
 
 impl App {
@@ -514,6 +518,30 @@ impl ApplicationHandler<Event> for App {
                 if let Err(e) = inner_size_writer.request_inner_size(size) {
                     eprintln!("noiseman: cannot resize window for scale {scale_factor}: {e}");
                 }
+                self.refit = true;
+            }
+            // On Wayland winit resizes only a window the compositor calls floating, and COSMIC reports this one tiled, so
+            // after a scale change it keeps its old logical size. Ask once more; if the size still does not fit, reopen
+            // the window, which gets the right size from the start.
+            WindowEvent::Resized(size) => {
+                let Some(v) = &self.view else { return };
+                let factor = v.window.scale_factor();
+                let want = window_size(factor);
+                // Within the slack scale() allows for Wayland's whole logical pixels.
+                let slack = whole_scale(factor) as u32;
+                let off = |s: PhysicalSize<u32>| {
+                    s.width.abs_diff(want.width) > slack || s.height.abs_diff(want.height) > slack
+                };
+                if !off(size) {
+                    self.reopened_at = None;
+                } else if self.refit {
+                    self.refit = false;
+                    if v.window.request_inner_size(want).is_some_and(off) && self.reopened_at != Some(factor) {
+                        self.reopened_at = Some(factor);
+                        self.hide();
+                        self.show(el);
+                    }
+                }
             }
             WindowEvent::RedrawRequested => {
                 if let Err(e) = self.draw() {
@@ -620,6 +648,8 @@ pub fn run() -> ExitCode {
         mods: ModifiersState::empty(),
         dragging: false,
         failed: false,
+        refit: false,
+        reopened_at: None,
     };
     // The window is created later, in `resumed`.
     tray::spawn(app.proxy.clone(), TrayState { shown: true, ..app.tray_state() });
