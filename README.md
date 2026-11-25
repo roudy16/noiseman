@@ -1,5 +1,7 @@
 # noiseman
 
+![The noiseman terminal UI playing brown noise at 50% volume](assets/noiseman-tui.png)
+
 A noise generator (white, pink, brown, blue, violet). A small background
 player owns the audio (cpal); a CLI and a terminal UI control it over a Unix
 socket. An optional window with a system-tray icon is available with the `gui`
