@@ -64,7 +64,7 @@ install:
     other=$(command -v nsm || true)
     if [[ (-e $bin/nsm || -L $bin/nsm) && $(readlink "$bin/nsm") != noiseman ]]; then
         echo "warning: $bin/nsm already exists and is not noiseman's; not linking nsm" >&2
-    elif [[ -n $other && $(basename "$(readlink -f "$other")") != noiseman ]]; then
+    elif [[ -n $other && $other != "$bin/nsm" && $(basename "$(readlink -f "$other" 2>/dev/null || echo "$other")") != noiseman ]]; then
         echo "warning: nsm on PATH is $other, not noiseman; not linking nsm" >&2
     elif [[ ! -L $bin/nsm ]]; then
         ln -s noiseman "$bin/nsm"
@@ -81,6 +81,10 @@ install:
     install -d "$share/applications"
     sed "s|@BIN@|$bin/noiseman|g" assets/noiseman.desktop > "$share/applications/noiseman.desktop"
     update-desktop-database "$share/applications" 2>/dev/null || true
+
+# build a release archive (with gui, plus license texts) into target/dist; target defaults to this machine
+package target=`rustc -vV | sed -n 's/^host: //p'`:
+    tools/package.sh {{ target }}
 
 # build the web demo (static files) into target/web
 web:

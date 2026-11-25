@@ -1,0 +1,62 @@
+# Builds release archives for Linux and macOS when a version tag (v*) is pushed, and publishes them, their checksums
+# and tools/install.sh as a GitHub release. The tag must match the version in Cargo.toml.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          # Linux builds run in an Ubuntu 22.04 container (glibc 2.35), so the binaries also run on older
+          # distributions; the 22.04 runner images themselves are being retired.
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-24.04, container: "ubuntu:22.04" }
+          - { target: aarch64-unknown-linux-gnu, os: ubuntu-24.04-arm, container: "ubuntu:22.04" }
+          - { target: aarch64-apple-darwin, os: macos-latest }
+          - { target: x86_64-apple-darwin, os: macos-latest }
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
+    steps:
+      - name: Install build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl git gcc libc6-dev pkg-config libasound2-dev python3
+      - uses: actions/checkout@v7
+      # Third-party action pinned to a commit; bump the SHA (and comment) to update.
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Check the tag matches Cargo.toml
+        shell: bash
+        run: |
+          version=$(cargo pkgid -p noiseman | sed 's/.*[@#]//')
+          [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME, Cargo.toml $version"; exit 1; }
+      - run: tools/package.sh ${{ matrix.target }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.target }}
+          path: target/dist/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* tools/install.sh --verify-tag --generate-notes --title "noiseman $GITHUB_REF_NAME"

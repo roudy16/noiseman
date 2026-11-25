@@ -6,6 +6,13 @@ name = "noiseman"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
+repository = "https://github.com/roudy16/noiseman"
+
+# Prebuilt archives from the Release workflow (`cargo binstall --git https://github.com/roudy16/noiseman noiseman`).
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.tar.gz"
+bin-dir = "{ name }-{ target }/{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
 
 [dependencies]
 noiseman-core = { path = "crates/core" }

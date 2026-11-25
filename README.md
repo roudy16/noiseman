@@ -18,6 +18,24 @@ web demo (source `docs/architecture.html`); `DESIGN.md` has the full design.
 
 **Supported systems:** Linux (PulseAudio or PipeWire via `pipewire-pulse`) and macOS (CoreAudio). Windows is not yet supported for the native app, though the browser demo works on any OS.
 
+### Prebuilt binary
+
+For Linux (x86_64, arm64) and macOS (Apple Silicon, Intel). This installs the latest release, window included, to
+`~/.local/bin` with an `nsm` link (an existing `nsm` is left alone, with a warning); on Linux it also installs the
+icons and a desktop entry:
+
+```sh
+curl -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh | sh
+```
+
+The script checks the archive's SHA-256, and that the binary runs on this system, before installing.
+`NOISEMAN_INSTALL_DIR` picks another directory and `NOISEMAN_VERSION=v0.1.0` a specific release. You can also download
+an archive from [Releases](https://github.com/roudy16/noiseman/releases) yourself, or use `cargo binstall --git
+https://github.com/roudy16/noiseman noiseman`. The Linux binaries need glibc 2.35 or newer (Ubuntu 22.04, Debian 12,
+Fedora 36) and ALSA's `libasound.so.2`, which desktop systems already have.
+
+### From source
+
 **Prerequisites:** A Rust toolchain (1.85+, edition 2024). On Linux, you also need `pkg-config` and ALSA development headers (`libasound2-dev` on Debian/Ubuntu, `alsa-lib-devel` on Fedora, `alsa-lib` on Arch) for cpal's ALSA fallback.
 
 Clone the repository and install `noiseman` to `~/.cargo/bin`:
@@ -76,6 +94,7 @@ just web                   # build the static browser demo into target/web
 just web-serve             # serve the browser demo on http://localhost:8000
 just profile [kind] [secs] # profile the DSP into profiles/dsp-<kind>.*
 just install               # install binary and nsm link to ~/.local/bin (+ icons, desktop entry on Linux)
+just package [target]      # build a release archive (with gui, plus license texts) into target/dist
 just clean                 # remove build artifacts
 ```
 
