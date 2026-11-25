@@ -23,7 +23,7 @@ use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, KeyEvent, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
-use winit::keyboard::{Key, NamedKey};
+use winit::keyboard::{Key, ModifiersState, NamedKey};
 use winit::window::{Window, WindowId};
 
 use super::client::{Client, Sender};
@@ -70,24 +70,100 @@ impl Rect {
 }
 
 const KINDS: usize = Kind::ALL.len();
-const PAD: i32 = 8;
-const GAP: i32 = 4;
-const BTN_W: i32 = 56;
-const ROW_H: i32 = 20;
-const WIN_W: i32 = PAD * 2 + KINDS as i32 * (BTN_W + GAP) - GAP;
-const WIN_H: i32 = 124;
-const BAR: Rect = Rect { x: PAD, y: 40, w: 240, h: ROW_H };
-const MUTE: Rect = Rect { x: PAD, y: 72, w: 64, h: ROW_H };
-const STATUS_Y: i32 = 104;
-const BG: u32 = 0x202124;
-const FG: u32 = 0xe8eaed;
-const BTN: u32 = 0x3c4043;
-const ACCENT: u32 = 0x8ab4f8;
-const DIM: u32 = 0x5f6368;
-const ERR: u32 = 0xf28b82;
+const WIN_W: i32 = 328;
+const MARGIN: i32 = 8;
+const IN_X: i32 = MARGIN + 11;
+const IN_W: i32 = WIN_W - 2 * IN_X;
+const LOGO: Rect = Rect { x: IN_X, y: MARGIN + 9, w: 63, h: 24 };
+const KINDS_Y: i32 = LOGO.y + LOGO.h + 8;
+const VOL_Y: i32 = KINDS_Y + 16;
+const BAR: Rect = Rect { x: IN_X, y: VOL_Y + 2, w: IN_W - 40, h: 4 };
+const TOGGLE: Rect = Rect { x: IN_X, y: VOL_Y + 16, w: IN_W, h: 16 };
+const CARD: Rect = Rect { x: MARGIN, y: MARGIN, w: WIN_W - 2 * MARGIN, h: TOGGLE.y + TOGGLE.h + 9 - MARGIN };
+const ERR_H: i32 = 16;
+const WIN_H: i32 = CARD.y + CARD.h + ERR_H + 24;
+const BG: u32 = 0x1d1d1d;
+const FG: u32 = 0xdcdcdc;
+const DIM: u32 = 0x8b8b8b;
+const GREEN: u32 = 0x4cae5a;
+const RED: u32 = 0xd94f45;
+/// tui.rs LOGO as bar heights in sixteenths of the tile.
+const LOGO_BARS: [i32; 12] = [5, 11, 7, 14, 9, 3, 12, 6, 15, 8, 4, 10];
 
-fn btn(i: usize) -> Rect {
-    Rect { x: PAD + i as i32 * (BTN_W + GAP), y: PAD, w: BTN_W, h: ROW_H }
+// Glyphs font8x8 lacks, in its layout: one byte per row, bit 0 is the leftmost pixel.
+const DOT: [u8; 8] = [0x00, 0x3C, 0x7E, 0x7E, 0x7E, 0x7E, 0x3C, 0x00];
+const RING: [u8; 8] = [0x00, 0x14, 0x40, 0x02, 0x40, 0x02, 0x28, 0x00];
+const CROSS: [u8; 8] = [0x00, 0x42, 0x24, 0x18, 0x18, 0x24, 0x42, 0x00];
+const MIDDOT: [u8; 8] = [0x00, 0x00, 0x00, 0x18, 0x18, 0x00, 0x00, 0x00];
+const LEFT: [u8; 8] = [0x00, 0x04, 0x06, 0x3F, 0x3F, 0x06, 0x04, 0x00];
+const RIGHT: [u8; 8] = [0x00, 0x08, 0x18, 0x3F, 0x3F, 0x18, 0x08, 0x00];
+
+fn glyph(c: char) -> Option<&'static [u8; 8]> {
+    match c {
+        '●' => Some(&DOT),
+        '◌' => Some(&RING),
+        '✕' => Some(&CROSS),
+        '·' => Some(&MIDDOT),
+        '←' => Some(&LEFT),
+        '→' => Some(&RIGHT),
+        _ => BASIC_LEGACY.get(c as usize),
+    }
+}
+
+/// Spaces are half width, so the key hints fit a small window.
+fn advance(c: char) -> i32 {
+    if c == ' ' { 4 } else { 8 }
+}
+
+fn text_w(s: &str) -> i32 {
+    s.chars().map(advance).sum()
+}
+
+struct Theme {
+    accent: u32,
+    track: u32,
+    /// The volume bar past the level: the track, dimmed as the TUI does.
+    rest: u32,
+    tile: u32,
+}
+
+/// Mixes `a` with `b`, `pct` percent of `a`, per channel.
+fn mix(a: u32, b: u32, pct: u32) -> u32 {
+    (0..3).map(|i| (((a >> (i * 8) & 0xff) * pct + (b >> (i * 8) & 0xff) * (100 - pct)) / 100) << (i * 8)).sum()
+}
+
+fn theme(kind: Kind) -> Theme {
+    let accent = match kind {
+        Kind::White => 0x8c96a8,
+        Kind::Pink => 0xd4708f,
+        Kind::Brown => 0xd08f4a,
+        Kind::Blue => 0x4f8fd6,
+        Kind::Violet => 0x9b74d6,
+    };
+    let track = mix(accent, 0x8a8a8a, 35);
+    Theme { accent, track, rest: mix(track, BG, 50), tile: mix(accent, 0, 22) }
+}
+
+/// The error line pushes the card's bottom down; without it the layout is centered in the same window.
+fn shift(error: bool) -> i32 {
+    if error { 0 } else { ERR_H / 2 }
+}
+
+/// Left edge and width of kind `i`'s "N Label", spread across the card.
+fn kind_span(i: usize) -> (i32, i32) {
+    let w = |k: &Kind| 12 + text_w(k.label());
+    let total: i32 = Kind::ALL.iter().map(w).sum();
+    let before: i32 = Kind::ALL[..i].iter().map(w).sum();
+    (IN_X + before + (IN_W - total) * i as i32 / (KINDS as i32 - 1), w(&Kind::ALL[i]))
+}
+
+fn kind_hit(i: usize) -> Rect {
+    let (x, w) = kind_span(i);
+    Rect { x: x - 4, y: KINDS_Y - 4, w: w + 8, h: 16 }
+}
+
+fn bar_hit() -> Rect {
+    Rect { y: VOL_Y - 4, h: 16, ..BAR }
 }
 
 fn vol_at(x: i32) -> i32 {
@@ -99,10 +175,12 @@ struct Canvas<'a> {
     width: i32,
     height: i32,
     scale: i32,
+    dy: i32,
 }
 
 impl Canvas<'_> {
     fn rect(&mut self, Rect { x, y, w, h }: Rect, color: u32) {
+        let y = y + self.dy;
         let (x0, y0) = ((x * self.scale).max(0), (y * self.scale).max(0));
         let (x1, y1) = (((x + w) * self.scale).min(self.width), ((y + h) * self.scale).min(self.height));
         if x0 >= x1 {
@@ -114,21 +192,98 @@ impl Canvas<'_> {
         }
     }
 
-    fn text(&mut self, x: i32, y: i32, text: &str, color: u32) {
-        for (i, ch) in text.bytes().enumerate() {
-            let Some(glyph) = BASIC_LEGACY.get(ch as usize) else { continue };
-            for (row, bits) in glyph.iter().enumerate() {
+    /// A 1px outline with the corner pixels left out, for a hint of rounding.
+    fn frame(&mut self, r: Rect, color: u32) {
+        self.rect(Rect { x: r.x + 1, w: r.w - 2, h: 1, ..r }, color);
+        self.rect(Rect { x: r.x + 1, y: r.y + r.h - 1, w: r.w - 2, h: 1 }, color);
+        self.rect(Rect { y: r.y + 1, w: 1, h: r.h - 2, ..r }, color);
+        self.rect(Rect { x: r.x + r.w - 1, y: r.y + 1, w: 1, h: r.h - 2 }, color);
+    }
+
+    fn fill(&mut self, r: Rect, color: u32) {
+        self.rect(Rect { x: r.x + 1, w: r.w - 2, ..r }, color);
+        self.rect(Rect { y: r.y + 1, h: r.h - 2, ..r }, color);
+    }
+
+    /// Bold widens strokes one pixel right, except into a gap whose right side is lit (keeps "m" open).
+    /// Returns the x after the text.
+    fn text(&mut self, mut x: i32, y: i32, text: &str, color: u32, bold: bool) -> i32 {
+        for ch in text.chars() {
+            for (row, &bits) in glyph(ch).into_iter().flatten().enumerate() {
+                let bits = if bold { bits | (bits << 1 & !(bits >> 1)) } else { bits };
                 for col in 0..8 {
                     if bits >> col & 1 == 1 {
-                        self.rect(Rect { x: x + i as i32 * 8 + col, y: y + row as i32, w: 1, h: 1 }, color);
+                        self.rect(Rect { x: x + col, y: y + row as i32, w: 1, h: 1 }, color);
                     }
                 }
             }
+            x += advance(ch);
         }
+        x
     }
+}
 
-    fn label(&mut self, r: Rect, text: &str, color: u32) {
-        self.text(r.x + (r.w - text.len() as i32 * 8) / 2, r.y + (r.h - 8) / 2, text, color);
+/// Paints the whole window at an integer scale into a `width` x `height` buffer.
+fn paint(pixels: &mut [u32], width: i32, height: i32, scale: i32, s: &State, tray: bool, error: Option<&str>) {
+    pixels.fill(BG);
+    let t = theme(s.kind);
+    let mut c = Canvas { pixels, width, height, scale, dy: shift(error.is_some()) };
+    let card = Rect { h: CARD.h + if error.is_some() { ERR_H } else { 0 }, ..CARD };
+    let right = IN_X + IN_W;
+    let level = if s.muted { t.track } else { t.accent };
+    c.frame(card, t.track);
+    c.rect(LOGO, t.tile);
+    for (i, h) in LOGO_BARS.iter().enumerate() {
+        let h = h * LOGO.h / 16;
+        c.rect(Rect { x: LOGO.x + 2 + i as i32 * 5, y: LOGO.y + LOGO.h - h, w: 4, h }, level);
+    }
+    let x = LOGO.x + LOGO.w + 10;
+    c.text(x, LOGO.y + 2, "noiseman", t.accent, true);
+    c.text(x, LOGO.y + 14, "noise generator", DIM, false);
+    if s.muted {
+        c.text(right - text_w("◌ Muted"), LOGO.y + 2, "◌ Muted", DIM, false);
+    } else {
+        let x = c.text(right - text_w("● Playing"), LOGO.y + 2, "●", GREEN, false);
+        c.text(x, LOGO.y + 2, " Playing", FG, false);
+    }
+    for (i, k) in Kind::ALL.iter().enumerate() {
+        let selected = *k == s.kind;
+        let x = c.text(kind_span(i).0, KINDS_Y, &"12345"[i..=i], if selected { t.accent } else { t.track }, false);
+        c.text(x + 4, KINDS_Y, k.label(), if selected { t.accent } else { FG }, selected);
+    }
+    let vol = s.vol.clamp(0, 100);
+    c.rect(BAR, t.rest);
+    c.rect(Rect { w: BAR.w * vol / 100, ..BAR }, level);
+    let mut digits = *b"100%";
+    let n = 2 - (vol >= 10) as usize - (vol == 100) as usize;
+    digits[1] = b'0' + (vol / 10 % 10) as u8;
+    digits[2] = b'0' + (vol % 10) as u8;
+    let pct = std::str::from_utf8(&digits[n..]).unwrap_or("?");
+    c.text(right - text_w(pct), VOL_Y, pct, FG, false);
+    let (label, ink) = if s.muted {
+        c.fill(TOGGLE, t.accent);
+        ("Play", BG)
+    } else {
+        c.frame(TOGGLE, t.accent);
+        ("Mute", t.accent)
+    };
+    c.text(TOGGLE.x + (TOGGLE.w - text_w(label)) / 2, TOGGLE.y + 4, label, ink, true);
+    if let Some(e) = error {
+        let x = c.text(IN_X, TOGGLE.y + TOGGLE.h + 8, "✕ ", RED, false);
+        let e = e.char_indices().nth(((right - x) / 8) as usize).map_or(e, |(i, _)| &e[..i]);
+        c.text(x, TOGGLE.y + TOGGLE.h + 8, e, RED, false);
+    }
+    let hints =
+        [("1-5", "noise"), ("←→", "vol"), ("m", "mute"), ("q", if tray { "hide" } else { "quit" }), ("s", "stop")];
+    let sep = " · ";
+    let total = hints.iter().map(|(k, d)| text_w(k) + 4 + text_w(d)).sum::<i32>() + 4 * text_w(sep);
+    let (mut x, y) = ((WIN_W - total) / 2, card.y + card.h + 8);
+    for (i, (key, desc)) in hints.iter().enumerate() {
+        if i > 0 {
+            x = c.text(x, y, sep, DIM, false);
+        }
+        x = c.text(x, y, key, t.accent, true);
+        x = c.text(x + 4, y, desc, DIM, false);
     }
 }
 
@@ -174,6 +329,7 @@ struct App {
     state: State,
     problem: Option<String>,
     cursor: (i32, i32),
+    mods: ModifiersState,
     dragging: bool,
     failed: bool,
 }
@@ -208,13 +364,18 @@ impl App {
         }
     }
 
+    fn error(&self) -> Option<&str> {
+        self.problem.as_deref().or(self.state.error.as_deref())
+    }
+
     fn click(&mut self, x: i32, y: i32) {
-        if let Some(i) = (0..KINDS).find(|&i| btn(i).contains(x, y)) {
+        let y = y - shift(self.error().is_some());
+        if let Some(i) = (0..KINDS).find(|&i| kind_hit(i).contains(x, y)) {
             self.send(Command::Kind(Kind::ALL[i]));
-        } else if BAR.contains(x, y) {
+        } else if bar_hit().contains(x, y) {
             self.dragging = true;
             self.set_vol(vol_at(x));
-        } else if MUTE.contains(x, y) {
+        } else if TOGGLE.contains(x, y) {
             self.send(Command::ToggleMute);
         } else {
             return;
@@ -261,24 +422,8 @@ impl App {
         let (Some(w), Some(h)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height)) else { return Ok(()) };
         view.surface.resize(w, h)?;
         let mut buf = view.surface.buffer_mut()?;
-        buf.fill(BG);
-        let mut c = Canvas { pixels: &mut buf, width: w.get() as i32, height: h.get() as i32, scale };
-        let current = self.state.kind;
-        for (i, k) in Kind::ALL.iter().enumerate() {
-            let (bg, fg) = if *k == current { (ACCENT, BG) } else { (BTN, FG) };
-            c.rect(btn(i), bg);
-            c.label(btn(i), k.label(), fg);
-        }
-        c.rect(BAR, BTN);
-        let State { vol, muted, .. } = self.state;
-        c.rect(Rect { w: BAR.w * vol / 100, ..BAR }, if muted { DIM } else { ACCENT });
-        c.text(BAR.x + BAR.w + 8, BAR.y + 6, &format!("{vol:>3}%"), FG);
-        c.rect(Rect { x: MUTE.x, y: MUTE.y + 2, w: 16, h: 16 }, FG);
-        c.rect(Rect { x: MUTE.x + 2, y: MUTE.y + 4, w: 12, h: 12 }, if muted { ACCENT } else { BG });
-        c.text(MUTE.x + 24, MUTE.y + 6, "Mute", FG);
-        if let Some(e) = self.problem.as_deref().or(self.state.error.as_deref()) {
-            c.text(PAD, STATUS_Y, e, ERR);
-        }
+        let error = self.problem.as_deref().or(self.state.error.as_deref());
+        paint(&mut buf, w.get() as i32, h.get() as i32, scale, &self.state, self.tray.is_some(), error);
         buf.present()
     }
 }
@@ -345,20 +490,24 @@ impl ApplicationHandler<Event> for App {
                 }
                 ElementState::Released => {}
             },
+            WindowEvent::ModifiersChanged(m) => self.mods = m.state(),
             WindowEvent::KeyboardInput {
                 event: KeyEvent { logical_key, state: ElementState::Pressed, repeat, .. },
                 ..
-            } => {
+            } if !self.mods.intersects(ModifiersState::CONTROL | ModifiersState::ALT | ModifiersState::SUPER) => {
                 let cycle = |step: usize| {
                     let i = Kind::ALL.iter().position(|&k| k == self.state.kind).unwrap_or(0);
                     Command::Kind(Kind::ALL[(i + step) % KINDS])
                 };
+                let (next, prev) = (cycle(1), cycle(KINDS - 1));
                 match logical_key.as_ref() {
                     Key::Character("q") | Key::Named(NamedKey::Escape) if !repeat => return self.close(el),
-                    Key::Named(NamedKey::ArrowLeft) | Key::Character("h") => self.send(Command::VolBy(-5)),
-                    Key::Named(NamedKey::ArrowRight) | Key::Character("l") => self.send(Command::VolBy(5)),
-                    Key::Named(NamedKey::ArrowUp) | Key::Character("k") => self.send(cycle(KINDS - 1)),
-                    Key::Named(NamedKey::ArrowDown) | Key::Character("j") => self.send(cycle(1)),
+                    Key::Character("s") if !repeat => return self.quit(el),
+                    Key::Named(NamedKey::ArrowLeft) | Key::Character("h" | "-") => self.send(Command::VolBy(-5)),
+                    Key::Named(NamedKey::ArrowRight) | Key::Character("l" | "+" | "=") => self.send(Command::VolBy(5)),
+                    Key::Named(NamedKey::Tab) if self.mods.shift_key() => self.send(prev),
+                    Key::Named(NamedKey::ArrowUp | NamedKey::Tab) | Key::Character("k") => self.send(next),
+                    Key::Named(NamedKey::ArrowDown) | Key::Character("j") => self.send(prev),
                     Key::Character("m") | Key::Named(NamedKey::Space) if !repeat => self.send(Command::ToggleMute),
                     Key::Character(c) => match c.parse::<usize>() {
                         Ok(n @ 1..=KINDS) => self.send(Command::Kind(Kind::ALL[n - 1])),
@@ -420,6 +569,7 @@ pub fn run() -> ExitCode {
         state: first,
         problem: None,
         cursor: (0, 0),
+        mods: ModifiersState::empty(),
         dragging: false,
         failed: false,
     };
@@ -430,4 +580,30 @@ pub fn run() -> ExitCode {
         return ExitCode::FAILURE;
     }
     if app.failed { ExitCode::FAILURE } else { ExitCode::SUCCESS }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn paints_each_state() {
+        let state = |kind, vol, muted, error: Option<&str>| State { kind, vol, muted, error: error.map(String::from) };
+        let frames = [
+            ("brown-playing", state(Kind::Brown, 50, false, None), true),
+            ("pink-muted", state(Kind::Pink, 30, true, None), false),
+            ("blue-error", state(Kind::Blue, 75, false, Some("audio device lost")), true),
+        ];
+        let (w, h) = (WIN_W * 2, WIN_H * 2);
+        let mut px = vec![0; (w * h) as usize];
+        for (name, s, tray) in frames {
+            paint(&mut px, w, h, 2, &s, tray, s.error.as_deref());
+            assert!(px.contains(&theme(s.kind).accent), "{name}: no accent");
+            assert!(px.contains(&if s.error.is_some() { RED } else { FG }), "{name}: no text");
+            let Some(dir) = std::env::var_os("NOISEMAN_GUI_SNAPSHOT") else { continue };
+            let mut ppm = format!("P6 {w} {h} 255\n").into_bytes();
+            ppm.extend(px.iter().flat_map(|p| [(p >> 16) as u8, (p >> 8) as u8, *p as u8]));
+            std::fs::write(std::path::Path::new(&dir).join(format!("gui-{name}.ppm")), ppm).expect("write snapshot");
+        }
+    }
 }

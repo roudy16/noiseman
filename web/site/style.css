@@ -32,7 +32,7 @@ header { display: flex; align-items: center; gap: 1.25rem; }
 body:not(.playing) .logo i { background: var(--track); }
 .title { flex: 1; }
 h1 { margin: 0; font-size: 1rem; color: var(--ink); }
-.title p, .keys, .about, label { margin: 0; color: var(--dim); }
+.title p, .keys, .about { margin: 0; color: var(--dim); }
 .status { margin: 0; align-self: flex-start; color: var(--dim); white-space: nowrap; }
 .playing .status { color: var(--fg); }
 .playing .status::first-letter { color: var(--green); }
@@ -41,12 +41,17 @@ h1 { margin: 0; font-size: 1rem; color: var(--ink); }
   font: inherit; color: var(--fg); background: none; border: 1px solid transparent; border-radius: .4rem;
   padding: .25rem .5rem; cursor: pointer;
 }
-.kinds button span { color: var(--dim); margin-right: .4rem; }
+.kinds button span { color: var(--track); margin-right: .4rem; }
 .kinds button[aria-checked="true"] { color: var(--ink); font-weight: bold; border-color: var(--ink); }
-.kinds button[aria-checked="true"] span { color: var(--ink); }
-.volume { display: grid; grid-template-columns: auto 1fr 3.5rem; align-items: center; gap: 1rem; }
+.kinds button[aria-checked="true"] span { color: var(--ink); font-weight: normal; }
+.volume { display: grid; grid-template-columns: 1fr 3.5rem; align-items: center; gap: 1rem; }
 output { text-align: right; }
-input[type="range"] { width: 100%; accent-color: var(--accent); }
+input[type="range"] {
+  --fill: var(--accent); width: 100%; height: .4rem; appearance: none; border-radius: .2rem; accent-color: var(--fill);
+  background: linear-gradient(90deg, var(--fill) var(--v), color-mix(in srgb, var(--track) 50%, var(--bg)) 0);
+}
+input[type="range"]::-moz-range-thumb { background: var(--fill); border: 0; }
+body:not(.playing) input[type="range"] { --fill: var(--track); }
 .play {
   font: inherit; font-weight: bold; padding: .6rem; border-radius: .5rem; cursor: pointer;
   border: 1px solid var(--accent); background: var(--accent); color: #1d1d1d;
@@ -56,7 +61,8 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .error { margin: 0; color: var(--red); }
 .keys { text-align: center; }
 kbd { color: var(--ink); font: inherit; font-weight: bold; }
-.keys span { white-space: nowrap; margin: 0 .4rem; }
+.keys span { white-space: nowrap; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .about { font-size: .8rem; text-align: center; }
 .about a { color: var(--fg); }
 @media (max-width: 30rem) {

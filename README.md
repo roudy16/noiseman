@@ -38,8 +38,8 @@ noiseman help         # every command
 ```
 
 In the terminal UI, `1`-`5` pick a noise, `↑`/`↓` or `k`/`j` cycle it, `←`/`→` or `h`/`l` change the volume, `m` or
-space mutes, and `s` stops. `q` or `Esc` closes the UI and leaves the noise playing. The window and the browser demo
-take the same noise, volume and mute keys.
+space mutes, and `s` stops. `q` or `Esc` closes the UI and leaves the noise playing. The window takes the same keys
+(there `q` hides it to the tray); the browser demo takes the noise, volume and mute ones.
 
 Muted, the player releases the audio device and uses no CPU.
 [How it works](https://roudy16.github.io/noiseman/architecture/) explains the design.

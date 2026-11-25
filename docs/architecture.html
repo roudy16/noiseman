@@ -367,7 +367,7 @@ a { color: var(--accent); }
         <text class="lbl" x="531" y="173" text-anchor="middle">copy</text>
       </svg>
     </div>
-    <figcaption>Pause sends volume 0, lets the voice fade, and suspends the AudioContext 150 ms later, so a paused tab does no audio work. The worklet reuses a cached <code>Float32Array</code> view of WASM memory (rebuilding it only on the first block or if the buffer or block size changes), so a normal block allocates nothing.</figcaption>
+    <figcaption>Mute sends volume 0, lets the voice fade, and suspends the AudioContext 150 ms later, so a muted tab does no audio work. The worklet reuses a cached <code>Float32Array</code> view of WASM memory (rebuilding it only on the first block or if the buffer or block size changes), so a normal block allocates nothing.</figcaption>
   </figure>
 </section>
 

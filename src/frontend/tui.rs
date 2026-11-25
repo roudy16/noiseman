@@ -250,7 +250,7 @@ const LOGO: [&str; 2] = ["  ▃ ▆▁ ▄ ▇  ▂ ", " ▅█▇██▃█�
 const KEYS: [(&[&str], &str); 5] = [
     (&["1-5", "↓↑", "jk"], "noise"),
     (&["←→", "hl"], "volume"),
-    (&["m"], "mute"),
+    (&["m", "space"], "mute"),
     (&["q", "esc"], "leave (keeps playing)"),
     (&["s"], "stop"),
 ];

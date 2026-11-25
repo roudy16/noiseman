@@ -16,8 +16,8 @@ const $ = (id) => document.getElementById(id);
 function load() {
   try {
     const { kind, vol } = JSON.parse(localStorage.getItem("noiseman") ?? "{}");
-    const valid = (v, max) => Number.isInteger(v) && v >= 0 && v <= max;
-    return { ...(valid(kind, KINDS.length - 1) && { kind }), ...(valid(vol, 100) && { vol }) };
+    const i = KINDS.indexOf(kind);
+    return { ...(i >= 0 && { kind: i }), ...(Number.isInteger(vol) && vol >= 0 && vol <= 100 && { vol }) };
   } catch {
     return {};
   }
@@ -32,7 +32,7 @@ const buttons = KINDS.map((label, i) => {
   const b = document.createElement("button");
   b.type = "button";
   b.setAttribute("role", "radio");
-  b.innerHTML = `<span>${i + 1}</span>${label}`;
+  b.innerHTML = `<span aria-hidden="true">${i + 1}</span>${label}`;
   b.addEventListener("click", () => setKind(i));
   $("kinds").append(b);
   return b;
@@ -102,7 +102,7 @@ function setVol(v) {
 
 function save() {
   try {
-    localStorage.setItem("noiseman", JSON.stringify({ kind: state.kind, vol: state.vol }));
+    localStorage.setItem("noiseman", JSON.stringify({ kind: KINDS[state.kind], vol: state.vol }));
   } catch {
     // Not remembered across visits; playback is unaffected.
   }
@@ -119,11 +119,12 @@ function render(error) {
   });
   if (buttons.includes(document.activeElement)) buttons[state.kind].focus();
   $("vol").value = state.vol;
+  $("vol").style.setProperty("--v", `${state.vol}%`);
   $("volout").value = `${state.vol}%`;
-  $("status").textContent = state.playing ? "● Playing" : "◌ Paused";
-  $("play").textContent = state.playing ? "Pause" : "Play";
+  $("status").textContent = state.playing ? "● Playing" : "◌ Muted";
+  $("play").textContent = state.playing ? "Mute" : "Play";
   $("error").hidden = !error;
-  $("error").textContent = error ?? "";
+  $("error").textContent = error ? `✕ ${error}` : "";
 }
 
 $("vol").addEventListener("input", (e) => setVol(+e.target.value));
@@ -133,10 +134,10 @@ addEventListener("keydown", (e) => {
   const inRange = e.target === $("vol");
   const onPlay = e.target === $("play");
   if (e.key >= "1" && e.key <= "5") setKind(+e.key - 1);
-  else if (e.key === "k" || (e.key === "ArrowUp" && !inRange)) setKind(state.kind - 1);
-  else if (e.key === "j" || (e.key === "ArrowDown" && !inRange)) setKind(state.kind + 1);
-  else if (e.key === "h" || (e.key === "ArrowLeft" && !inRange)) setVol(state.vol - 5);
-  else if (e.key === "l" || (e.key === "ArrowRight" && !inRange)) setVol(state.vol + 5);
+  else if (e.key === "k" || (e.key === "ArrowUp" && !inRange)) setKind(state.kind + 1);
+  else if (e.key === "j" || (e.key === "ArrowDown" && !inRange)) setKind(state.kind - 1);
+  else if ("h-".includes(e.key) || (e.key === "ArrowLeft" && !inRange)) setVol(state.vol - 5);
+  else if ("l+=".includes(e.key) || (e.key === "ArrowRight" && !inRange)) setVol(state.vol + 5);
   else if (e.key === "m" || (e.key === " " && !onPlay)) {
     if (!e.repeat) setPlaying(!state.playing);
   }

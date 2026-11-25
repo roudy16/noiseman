@@ -23,20 +23,20 @@
 <body>
 <main class="card">
   <header>
-    <div class="logo" aria-hidden="true"><i style="--h:5"></i><i style="--h:8"></i><i style="--h:11"></i><i style="--h:8"></i><i style="--h:14"></i><i style="--h:9"></i><i style="--h:3"></i><i style="--h:12"></i><i style="--h:6"></i><i style="--h:15"></i><i style="--h:8"></i><i style="--h:10"></i><i style="--h:4"></i></div>
+    <div class="logo" aria-hidden="true"><i style="--h:5"></i><i style="--h:11"></i><i style="--h:7"></i><i style="--h:14"></i><i style="--h:9"></i><i style="--h:3"></i><i style="--h:12"></i><i style="--h:6"></i><i style="--h:15"></i><i style="--h:8"></i><i style="--h:4"></i><i style="--h:10"></i></div>
     <div class="title"><h1>noiseman</h1><p>noise generator</p></div>
-    <p class="status" id="status" aria-live="polite">◌ Paused</p>
+    <p class="status" id="status" aria-live="polite">◌ Muted</p>
   </header>
   <div class="kinds" id="kinds" role="radiogroup" aria-label="Noise"></div>
   <div class="volume">
-    <label for="vol">Volume</label>
+    <label class="sr" for="vol">Volume</label>
     <input type="range" id="vol" min="0" max="100" step="5">
     <output id="volout" for="vol"></output>
   </div>
   <button class="play" id="play" type="button">Play</button>
   <p class="error" id="error" role="alert" hidden></p>
 </main>
-<p class="keys"><span><kbd>1-5</kbd> noise</span> <span><kbd>↑↓</kbd> <kbd>jk</kbd> cycle</span> <span><kbd>←→</kbd> <kbd>hl</kbd> volume</span> <span><kbd>space</kbd> play / pause</span></p>
+<p class="keys"><span><kbd>1-5</kbd>/<kbd>↓↑</kbd>/<kbd>jk</kbd> noise</span> · <span><kbd>←→</kbd>/<kbd>hl</kbd> volume</span> · <span><kbd>m</kbd>/<kbd>space</kbd> mute</span></p>
 <p class="about">Rust compiled to a ~6 KB WebAssembly module, running in an AudioWorklet. Nothing is downloaded or
 streamed: the noise is computed on your device, and the audio engine is suspended while paused. <a href="architecture/">How it works</a>.</p>
 </body>
