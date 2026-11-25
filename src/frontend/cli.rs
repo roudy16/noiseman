@@ -29,7 +29,8 @@ Notes:
     (default: brown, 50%, playing). `status`, `mute` and `stop` never start it.
   - Output format: `<Kind> <vol>% <playing|muted>` (or `stopped` / `not running`).
   - Exit status: 0 on success, 1 on error (errors go to stderr, e.g. `status` when stopped).
-  - Runtime files: $XDG_RUNTIME_DIR/noiseman.{sock,lock,log} (fallback: $TMPDIR/noiseman-<uid>/).";
+  - Runtime files: $XDG_RUNTIME_DIR/noiseman.{sock,lock,log} (fallback: $TMPDIR/noiseman-<uid>/,
+    or %LOCALAPPDATA%\\noiseman on Windows).";
 
 pub fn run(args: &[String]) -> ExitCode {
     match exec(args) {

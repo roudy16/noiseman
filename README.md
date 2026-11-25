@@ -36,7 +36,7 @@ Fedora 36) and ALSA's `libasound.so.2`, which desktop systems already have.
 
 ### From source
 
-**Prerequisites:** A Rust toolchain (1.85+, edition 2024). On Linux, you also need `pkg-config` and ALSA development headers (`libasound2-dev` on Debian/Ubuntu, `alsa-lib-devel` on Fedora, `alsa-lib` on Arch) for cpal's ALSA fallback.
+**Prerequisites:** A Rust toolchain (1.88+, edition 2024; 1.89+ for `--features gui` on Linux). On Linux, you also need `pkg-config` and ALSA development headers (`libasound2-dev` on Debian/Ubuntu, `alsa-lib-devel` on Fedora, `alsa-lib` on Arch) for cpal's ALSA fallback.
 
 Clone the repository and install `noiseman` to `~/.cargo/bin`:
 

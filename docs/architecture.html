@@ -160,7 +160,7 @@ a { color: var(--accent); }
         <text class="lbl" x="652" y="281" text-anchor="middle">wasm32</text>
       </svg>
     </div>
-    <figcaption>The TUI, GUI and most CLI commands start the daemon if none is running (<code>setsid</code>, so it outlives the terminal); <code>status</code>, <code>mute</code> and <code>stop</code> never do. Leaving the CLI or TUI keeps the noise playing; in the GUI, closing the window hides it to the system tray (or stops the daemon if no tray is available).</figcaption>
+    <figcaption>The TUI, GUI and most CLI commands start the daemon if none is running (detached, so it outlives the terminal: <code>setsid</code> on Unix, its own process group on Windows); <code>status</code>, <code>mute</code> and <code>stop</code> never do. Leaving the CLI or TUI keeps the noise playing; in the GUI, closing the window hides it to the system tray (or stops the daemon if no tray is available).</figcaption>
   </figure>
 </section>
 
@@ -385,7 +385,7 @@ a { color: var(--accent); }
         <tr><td>TUI, private memory</td><td class="n">224–232 kB</td><td class="n">384 kB</td></tr>
         <tr><td>Core DSP, worst kind</td><td class="n">≈ 3.2 ns/sample</td><td class="n">6 ns</td></tr>
         <tr><td>noiseman.wasm</td><td class="n">6,182 B</td><td class="n">8,192 B</td></tr>
-        <tr><td>Whole web demo</td><td class="n">17,672 B</td><td class="n">20,480 B</td></tr>
+        <tr><td>Whole web demo</td><td class="n">18,885 B</td><td class="n">20,480 B</td></tr>
       </tbody>
     </table>
   </div>
