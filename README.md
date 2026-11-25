@@ -34,45 +34,39 @@ On Linux with `just`, you can run `just install` instead to install `noiseman` (
 
 ## Usage
 
-- `noiseman`: terminal UI. `1`–`5`, `↑`/`↓` or Tab noise, `←`/`→` volume, `m`/Space mute,
-  `q` leave (noise keeps playing), `s` stop the player. Monochrome under
-  `NO_COLOR` or on terminals with fewer than 256 colors.
-- `noiseman play [KIND]`, `stop`, `mute`, `unmute`, `toggle`,
-  `kind KIND`, `vol N|+N|-N`, `status`.
-- `noiseman daemon [--muted]`: run the player in the foreground (`--muted`
-  starts it silent, e.g. at login). Commands that should
-  make sound start it automatically, detached from the terminal, logging to
-  `noiseman.log` in `$XDG_RUNTIME_DIR` (or a private `noiseman-<uid>` directory in
-  the temp dir when it is unset).
-- `noiseman gui` (built with `--features gui`): the window. On Linux with a
-  system tray (StatusNotifierItem, e.g. COSMIC or KDE), closing the window
-  hides it to the tray; without a tray, closing it stops the player.
+```sh
+noiseman                 # open the terminal UI (controls shown at the bottom)
+noiseman gui             # open the desktop window and tray (needs --features gui)
+noiseman play [KIND]     # start or unmute (white, pink, brown, blue, violet)
+noiseman kind KIND       # switch noise kind
+noiseman vol N|+N|-N     # set or adjust volume (0-100)
+noiseman mute            # mute playback (also: unmute, toggle)
+noiseman status          # show current state
+noiseman stop            # stop the background player
+noiseman daemon          # run the player in the foreground (--muted to start silent)
+noiseman --help          # full command reference
+```
 
 ## Development
 
-All dev workflows go through `just` (run `just` alone to list recipes):
+Dev workflows go through [`just`](https://github.com/casey/just) (run `just` alone to list all recipes):
 
-- `just setup` — fetch dependencies and add the `wasm32-unknown-unknown` target
-- `just build` — compile
-- `just test` — run tests (all workspace crates)
-- `just fmt` — format the code (rustfmt)
-- `just lint` — clippy with warnings as errors: with and without the `gui` feature, and for the wasm target
-- `just check` — format check, lint, tests and quality gates
-- `just deps` — dependency health (needs network): known vulnerabilities and unmaintained crates (OSV/RustSec) for every locked crate, and direct or vendored crates behind their latest release
-- `just gates` — size, CPU and memory limits from `gates.toml` (about 2 s; needs PulseAudio for the runtime part)
-- `just web` / `just web-serve` — build / serve the browser demo
-- `just run [args...]` — run the binary
-- `just profile [kind] [secs]` — profile the noise DSP (perf, samply, inferno flamegraph) into `profiles/dsp-<kind>.*`
-- `just install` — install to `~/.local/bin` (with `nsm` as a short alias), plus hicolor icons (`~/.local/share/icons/hicolor/*/apps/noiseman.*`) and desktop entry (`~/.local/share/applications/noiseman.desktop`, opens in a terminal)
-- `just clean` — remove build artifacts
-
-For the window: `cargo build --release --features gui`.
-
-Web demo: `just web` builds a static site into `target/web` (needs the `wasm32-unknown-unknown` target, which
-`just setup` adds); `just web-serve` serves it at http://localhost:8000. Any static
-host works; the page is about 18 KB including the ~6 KB WebAssembly module. `.github/workflows/pages.yml` publishes it to
-GitHub Pages on every push to `main` that touches it (one-time setup: Settings → Pages → Source: GitHub
-Actions; free for public repositories).
+```sh
+just setup                 # fetch dependencies and add the wasm32 target
+just build                 # compile (use cargo --features gui for the window)
+just run [args...]         # run the binary
+just test                  # run workspace tests
+just fmt                   # format with rustfmt
+just lint                  # clippy across default, gui and wasm32 targets
+just gates                 # check size, DSP and runtime limits (gates.toml)
+just check                 # fmt check, lint, test and gates (run before committing)
+just deps                  # check advisories and outdated dependencies (network)
+just web                   # build the static browser demo into target/web
+just web-serve             # serve the browser demo on http://localhost:8000
+just profile [kind] [secs] # profile the DSP into profiles/dsp-<kind>.*
+just install               # install binary, nsm alias, icons and desktop entry (Linux)
+just clean                 # remove build artifacts
+```
 
 ## License
 
