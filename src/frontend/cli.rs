@@ -76,6 +76,9 @@ fn exec(args: &[String]) -> Result<(), String> {
 }
 
 fn report(cmds: &[Command], client: &mut Client) -> Result<(), String> {
+    if let Some(w) = client.warning.as_ref().filter(|_| cmds != [Command::Quit]) {
+        eprintln!("noiseman: warning: {w}");
+    }
     let mut state = None;
     for &cmd in cmds {
         state = Some(client.request(cmd)?);

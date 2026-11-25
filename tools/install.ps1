@@ -40,6 +40,24 @@ function Install-Noiseman {
         $new = "$tmp\$name"
         & "$new\noiseman.exe" help | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "the $target binary does not run here; build from source ($repo)" }
+        # A running player keeps running the replaced binary; stop it (`status` never starts one) so this version takes over.
+        $stopped = $false
+        $current = Join-Path $dir 'noiseman.exe'
+        if (Test-Path $current) {
+            $ErrorActionPreference = 'Continue'  # with 'Stop', Windows PowerShell throws on a native command's redirected stderr
+            try {
+                & $current status 2>$null | Out-Null
+                if ($LASTEXITCODE -eq 0) {
+                    & $current stop | Out-Null
+                    if ($LASTEXITCODE -ne 0) { throw "``noiseman stop`` exited with $LASTEXITCODE" }
+                    $stopped = $true
+                }
+            } catch {
+                Write-Warning "cannot stop the running player ($_); run ``noiseman stop`` to restart it with this version"
+            } finally {
+                $ErrorActionPreference = 'Stop'
+            }
+        }
 
         New-Item -ItemType Directory -Force $dir | Out-Null
         # Leftovers of binaries that were running at the last install (see Move-Aside), and nothing else.
@@ -58,6 +76,7 @@ function Install-Noiseman {
             Write-Host "Installed $dir\noiseman.exe, the terminal build (CLI and TUI; for the desktop window, set"
             Write-Host "`$env:NOISEMAN_GUI = '1' and run the installer again)"
         }
+        if ($stopped) { Write-Host 'Stopped the running player so this version takes over; `noiseman` starts it again' }
         Set-Nsm $dir
         $pathAdded = Add-UserPath $dir
         Add-Shortcut $dir

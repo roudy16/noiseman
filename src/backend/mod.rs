@@ -154,18 +154,20 @@ fn serve_client(stream: UnixStream, tx: Sender<Msg>) {
                 return;
             }
         };
-        match Command::parse(&line) {
+        // `protocol` needs no player state, so it is answered here, like a parse error.
+        let reply = match Command::parse(&line) {
+            Ok(Command::Protocol) => protocol::protocol_reply(),
             Ok(cmd) => {
                 if tx.send(Msg::Request(cmd, stream.clone())).is_err() {
                     return;
                 }
+                continue;
             }
-            Err(e) => {
-                if let Err(e) = (&*stream).write_all(format!("err {e}\n").as_bytes()) {
-                    eprintln!("noiseman: cannot reply to client: {e}");
-                    return;
-                }
-            }
+            Err(e) => format!("err {e}"),
+        };
+        if let Err(e) = (&*stream).write_all(format!("{reply}\n").as_bytes()) {
+            eprintln!("noiseman: cannot reply to client: {e}");
+            return;
         }
     }
 }

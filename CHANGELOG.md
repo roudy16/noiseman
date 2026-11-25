@@ -10,6 +10,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - The window takes `s` to stop the player, `+`/`=` and `-` for the volume, and Tab/Shift-Tab to cycle the noise,
   like the terminal UI. The browser demo also takes `+`/`=` and `-`.
 - `noiseman --version` (or `-V`, or `version`) prints the version.
+- The protocol has its own semver version, 0.1.0. Commands, the terminal UI and the window warn when the running
+  player's protocol is incompatible, and say to run `noiseman stop` to restart it.
 
 ### Changed
 
@@ -33,6 +35,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The installers stop a running player before replacing the binary, so an upgrade no longer leaves the old version
+  playing.
 - `noiseman help` says the window needs the gui build instead of `--features gui`, and lists the noises in the new
   order, as does the desktop entry.
 - `noiseman gui` in a build without the window says how to get one, instead of rejecting `gui` as an unknown command.

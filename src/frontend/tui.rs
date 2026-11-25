@@ -71,7 +71,7 @@ fn exec() -> Result<Option<String>, String> {
     if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
         return Err("the terminal UI needs a terminal; try `noiseman play` or `noiseman gui`".into());
     }
-    let Client { mut sender, mut receiver } = Client::connect(true)?;
+    let Client { mut sender, mut receiver, warning } = Client::connect(true)?;
     sender.send(Command::Watch)?;
     let (tx, rx) = mpsc::channel();
     let replies = tx.clone();
@@ -131,7 +131,8 @@ fn exec() -> Result<Option<String>, String> {
             Ui::Input(Event::Resize(..)) => {}
             Ui::Input(_) => continue,
         }
-        draw(&mut screen.0, &palette, state.as_ref(), problem.as_deref()).map_err(|e| format!("cannot draw: {e}"))?;
+        let error = problem.as_deref().or(state.as_ref().and_then(|s| s.error.as_deref())).or(warning.as_deref());
+        draw(&mut screen.0, &palette, state.as_ref(), error).map_err(|e| format!("cannot draw: {e}"))?;
     }
     Ok(None)
 }

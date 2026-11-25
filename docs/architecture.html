@@ -307,13 +307,14 @@ a { color: var(--accent); }
 
 <section>
   <h2>The protocol</h2>
-  <p>One request per line, one reply per request. Every reply is either a <code>state</code> line or an <code>err</code> line. After <code>watch</code>, the daemon also pushes a state line whenever anything changes; that is how the TUI and GUI stay in sync with each other and with the CLI.</p>
+  <p>One request per line, one reply per request. Every reply is either a <code>state</code> line or an <code>err</code> line, except the reply to <code>protocol</code>, which clients ask a daemon they did not start so they can warn when its protocol version (semver, separate from the app&rsquo;s) is incompatible. After <code>watch</code>, the daemon also pushes a state line whenever anything changes; that is how the TUI and GUI stay in sync with each other and with the CLI.</p>
   <pre><span class="c"># → request          ← reply</span>
 <span class="in">status</span>               state brown 50 playing
 <span class="in">kind pink</span>            state pink 50 playing
 <span class="in">vol +5</span>               state pink 55 playing
 <span class="in">mute</span>                 state pink 55 muted
 <span class="in">vol loud</span>             err bad volume "loud"
+<span class="in">protocol</span>             protocol 0.1.0
 <span class="in">watch</span>                state pink 55 muted
                      state pink 55 playing   <span class="c"># pushed when another client unmutes</span></pre>
   <p>The other requests are <code>vol N</code>, <code>vol -N</code>, <code>unmute</code>, <code>toggle</code> and <code>quit</code>. An audio failure is appended to the state line as an error message, and the daemon reports itself muted.</p>

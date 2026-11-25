@@ -1,12 +1,19 @@
 //! The contract between the backend (the player daemon) and every frontend.
 //!
 //! One request per line on a Unix socket; every reply line is either `state <kind> <vol> <playing|muted>[ <error>]`
-//! or `err <message>`. After `watch`, the daemon also pushes a `state` line on every change.
+//! or `err <message>`, except that `protocol` gets the one-off reply `protocol <PROTOCOL>`. After `watch`, the daemon also
+//! pushes a `state` line on every change.
 
 use std::fmt;
 use std::path::PathBuf;
 
 use crate::platform;
+
+/// The version of this protocol, independent of the app's, under semver as Cargo reads it (see `compatible`): an
+/// addition clients may rely on bumps the minor version, any other change the major (while the major is 0: the patch
+/// and the minor). noiseman 0.1.0 predates the `protocol` request (it answers `err unknown request "protocol"`) and
+/// otherwise speaks 0.1.0.
+pub const PROTOCOL: &str = "0.1.0";
 
 pub use noiseman_core::Kind;
 
@@ -19,6 +26,7 @@ pub enum Command {
     ToggleMute,
     Status,
     Watch,
+    Protocol,
     Quit,
 }
 
@@ -51,6 +59,7 @@ impl Command {
             "toggle" => Command::ToggleMute,
             "status" => Command::Status,
             "watch" => Command::Watch,
+            "protocol" => Command::Protocol,
             "quit" => Command::Quit,
             "" => return Err("empty request".into()),
             other => return Err(format!("unknown request {other:?}")),
@@ -74,6 +83,7 @@ impl fmt::Display for Command {
             Command::ToggleMute => f.write_str("toggle"),
             Command::Status => f.write_str("status"),
             Command::Watch => f.write_str("watch"),
+            Command::Protocol => f.write_str("protocol"),
             Command::Quit => f.write_str("quit"),
         }
     }
@@ -111,6 +121,34 @@ impl fmt::Display for State {
     }
 }
 
+pub fn protocol_reply() -> String {
+    format!("protocol {PROTOCOL}")
+}
+
+/// The daemon's protocol version from its reply to `protocol`; 0.1.0 for a daemon that predates the request.
+pub fn parse_protocol(line: &str) -> &str {
+    line.strip_prefix("protocol ").unwrap_or("0.1.0")
+}
+
+/// Whether a daemon speaking `theirs` serves a client built for `ours`, by Cargo's caret rule: the same major version
+/// (the same minor while the major is 0, the same patch while both are 0) and no older.
+pub fn compatible(theirs: &str, ours: &str) -> bool {
+    let parse = |v: &str| -> Option<[u64; 3]> {
+        let mut it = v.split('.').map(|n| n.parse().ok());
+        let parsed = [it.next()??, it.next()??, it.next()??];
+        it.next().is_none().then_some(parsed)
+    };
+    let (Some(t), Some(o)) = (parse(theirs), parse(ours)) else { return false };
+    let same = if o[0] > 0 {
+        1
+    } else if o[1] > 0 {
+        2
+    } else {
+        3
+    };
+    t[..same] == o[..same] && t >= o
+}
+
 /// The per-user private directory for the socket, the lock file and the daemon log.
 /// Absolute, so the daemon (which leaves its starting directory) and its clients agree on a relative
 /// `$XDG_RUNTIME_DIR` or `$TMPDIR`.
@@ -139,6 +177,7 @@ mod tests {
             Command::ToggleMute,
             Command::Status,
             Command::Watch,
+            Command::Protocol,
             Command::Quit,
         ] {
             assert_eq!(Command::parse(&cmd.to_string()), Ok(cmd));
@@ -148,6 +187,22 @@ mod tests {
             assert_eq!(State::parse(&s.to_string()), Ok(s));
         }
         assert_eq!(State::parse("err nope"), Err("nope".into()));
+        assert_eq!(parse_protocol(&protocol_reply()), PROTOCOL);
+        assert_eq!(parse_protocol("err unknown request \"protocol\""), "0.1.0");
+        for (theirs, ours, ok) in [
+            ("0.1.0", "0.1.0", true),
+            ("0.1.3", "0.1.0", true),
+            ("0.1.0", "0.1.3", false),
+            ("0.2.0", "0.1.0", false),
+            ("0.0.1", "0.0.2", false),
+            ("1.4.0", "1.2.0", true),
+            ("1.1.9", "1.2.0", false),
+            ("2.0.0", "1.2.0", false),
+            ("0.1", "0.1.0", false),
+            ("0.1.0.1", "0.1.0", false),
+        ] {
+            assert_eq!(compatible(theirs, ours), ok, "{theirs} serving {ours}");
+        }
         assert!(Command::parse("kind grey").is_err());
         assert!(Command::parse("mute now").is_err());
         assert!(Command::parse("vol 5 6").is_err());

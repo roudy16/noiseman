@@ -114,6 +114,15 @@ main() {
     # uname reports the kernel: a musl, 32-bit or too-old userland only shows when the binary runs.
     "$tmp/$name/noiseman" help >/dev/null 2>&1 ||
         die "the $target binary does not run here (it needs glibc 2.35+ on Linux); build from source ($repo)"
+    # A running player keeps running the replaced binary; stop it (`status` never starts one) so this version takes over.
+    stopped=
+    if [ -x "$dir/noiseman" ] && "$dir/noiseman" status >/dev/null 2>&1; then
+        if "$dir/noiseman" stop >/dev/null; then
+            stopped=1
+        else
+            echo "warning: cannot stop the running player; run \`noiseman stop\` to restart it with this version" >&2
+        fi
+    fi
 
     mkdir -p "$dir"
     # Write beside the target, then rename: replacing a running binary in place would corrupt it.
@@ -121,6 +130,9 @@ main() {
     chmod 755 "$dir/.noiseman.new"
     mv -f "$dir/.noiseman.new" "$dir/noiseman"
     echo "Installed $dir/noiseman, the $variant"
+    if [ -n "$stopped" ]; then
+        echo "Stopped the running player so this version takes over; \`noiseman\` starts it again"
+    fi
     link_nsm "$dir"
     if [ "$os" = Linux ]; then
         desktop_files "$tmp/$name/share" "$dir/noiseman"

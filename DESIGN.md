@@ -103,7 +103,7 @@ The single test in `noise.rs` generates 10 s of each type and checks:
 |---|---|
 | Player (daemon main) | Owns `Player` and with it the stream. Blocks on the mpsc channel; uses `recv_timeout` only while a mute fade is pending |
 | Accept | Accepts socket connections and spawns a reader per client |
-| Client reader (one per connection) | Parses request lines and forwards them to the player thread as `Msg::Request` |
+| Client reader (one per connection) | Parses request lines and forwards them to the player thread as `Msg::Request`; answers `protocol` and malformed lines itself |
 | cpal real-time | Runs the data callback. Owns `Voice` by `move`. Never allocates, locks, logs or makes syscalls |
 | cpal error callback | Not real-time. Logs the error, and on device loss sends `Msg::AudioLost` to the player thread |
 

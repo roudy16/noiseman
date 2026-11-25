@@ -17,7 +17,7 @@ Cargo workspace: the root package `noiseman` (the binary), `crates/core` and `we
   - `examples/noise_profile.rs`: DSP benchmark for `just profile`
 - `src/main.rs`: `daemon [--muted]` runs `backend::serve`; everything else goes to `frontend::run` (run as `noiseman-gui` with no arguments: `gui`)
 - `build.rs`: on Windows, embeds `assets/noiseman.ico` and version info (`winresource`)
-- `src/protocol.rs`: the only contract between the halves: `Kind` (re-exported from core), `Command`, `State`, their line encoding, `runtime_dir()` (from `platform`) and `socket_path()`, round-trip test
+- `src/protocol.rs`: the only contract between the halves: `Kind` (re-exported from core), `Command`, `State`, their line encoding (`protocol` gets its own reply: `protocol_reply`, `parse_protocol`), `PROTOCOL` (the protocol's own semver, bumped with any protocol change) and `compatible()`, `runtime_dir()` (from `platform`) and `socket_path()`, round-trip test
 - `src/platform/` (shared by both halves; the only OS-specific code)
   - `mod.rs`: the contract both backends meet, and a test that `net` behaves as the backend and client need (concurrent read and write, write timeout, shutdown EOF, a removed socket file)
   - `unix.rs`: runtime dir (0700, uid check), `setsid`, chmod 0600, std's `UnixListener`/`UnixStream` (truecolor comes from `COLORTERM` alone)
@@ -28,7 +28,7 @@ Cargo workspace: the root package `noiseman` (the binary), `crates/core` and `we
   - `audio.rs`: `GAIN`/`KIND` atomics (private; `kind()`, `set_kind()`, `set_gain()`), `AudioError`, `start()` returning `Output` (`buffer_time()`), `build::<T>()`, data and error callbacks (a core `Voice` per stream)
 - `src/frontend/` (no backend imports)
   - `mod.rs`: argument dispatch (none/`tui`, `gui`, `help`, `version`, else CLI)
-  - `client.rs`: `Client { sender, receiver }`, `connect(autostart)`, daemon autostart (`platform::spawn_detached`, log to the runtime dir)
+  - `client.rs`: `Client { sender, receiver, warning }`, `connect(autostart)` (asks an already-running daemon its `protocol`; `warning` when incompatible), daemon autostart (`platform::spawn_detached`, log to the runtime dir)
   - `cli.rs`: subcommands and `USAGE`
   - `tui.rs`: crossterm screen (refuses to start without a terminal); one thread reads keys, one reads pushed states, the main thread draws
   - `gui/mod.rs`, `gui/tray.rs` (`gui` feature): the window and ksni tray as a protocol client
@@ -39,6 +39,7 @@ Cargo workspace: the root package `noiseman` (the binary), `crates/core` and `we
 ## Invariants
 
 - Frontends reach the backend only through `protocol` over the endpoint, never by import; the backend never imports `frontend`.
+- Any change to the protocol bumps `protocol::PROTOCOL` by semver (independent of the app version): an addition clients may rely on bumps the minor, any other change the major (while the major is 0: the patch and the minor), as `compatible()` reads them.
 - Audio data callback: no allocation, locks, logging or syscalls. It reads `KIND`/`GAIN` once per buffer (`Relaxed`).
 - Player thread: blocks in `recv` (or `recv_timeout` only while a mute fade is pending). Muted means no stream and 0 wakeups; the daemon then has 2 threads plus one per connected client.
 - Client writes use a 200 ms timeout so a stalled client cannot stall the player; a watcher whose write fails is dropped.

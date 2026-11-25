@@ -328,6 +328,7 @@ struct App {
     view: Option<View>,
     state: State,
     problem: Option<String>,
+    warning: Option<String>,
     cursor: (i32, i32),
     mods: ModifiersState,
     dragging: bool,
@@ -365,7 +366,7 @@ impl App {
     }
 
     fn error(&self) -> Option<&str> {
-        self.problem.as_deref().or(self.state.error.as_deref())
+        self.problem.as_deref().or(self.state.error.as_deref()).or(self.warning.as_deref())
     }
 
     fn click(&mut self, x: i32, y: i32) {
@@ -422,7 +423,7 @@ impl App {
         let (Some(w), Some(h)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height)) else { return Ok(()) };
         view.surface.resize(w, h)?;
         let mut buf = view.surface.buffer_mut()?;
-        let error = self.problem.as_deref().or(self.state.error.as_deref());
+        let error = self.problem.as_deref().or(self.state.error.as_deref()).or(self.warning.as_deref());
         paint(&mut buf, w.get() as i32, h.get() as i32, scale, &self.state, self.tray.is_some(), error);
         buf.present()
     }
@@ -531,7 +532,7 @@ pub fn run() -> ExitCode {
         }
     };
     let proxy = event_loop.create_proxy();
-    let Client { mut sender, mut receiver } = match Client::connect(true) {
+    let Client { mut sender, mut receiver, warning } = match Client::connect(true) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("noiseman: {e}");
@@ -568,6 +569,7 @@ pub fn run() -> ExitCode {
         view: None,
         state: first,
         problem: None,
+        warning,
         cursor: (0, 0),
         mods: ModifiersState::empty(),
         dragging: false,

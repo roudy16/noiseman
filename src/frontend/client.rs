@@ -14,6 +14,8 @@ const START_TIMEOUT: Duration = Duration::from_secs(3);
 pub struct Client {
     pub sender: Sender,
     pub receiver: Receiver,
+    /// Set when the daemon that was already running speaks an incompatible protocol, or it could not be checked.
+    pub warning: Option<String>,
 }
 
 pub struct Sender(UnixStream);
@@ -24,16 +26,30 @@ impl Client {
     /// Connects to the running daemon; with `autostart`, starts one first if none is running.
     pub fn connect(autostart: bool) -> Result<Client, String> {
         let path = protocol::socket_path()?;
-        let stream = match UnixStream::connect(&path) {
-            Ok(s) => s,
-            Err(_) if autostart => start_daemon()?,
+        let (stream, started) = match UnixStream::connect(&path) {
+            Ok(s) => (s, false),
+            Err(_) if autostart => (start_daemon()?, true),
             Err(e) if matches!(e.kind(), io::ErrorKind::NotFound | io::ErrorKind::ConnectionRefused) => {
                 return Err("not running".into());
             }
             Err(e) => return Err(format!("cannot connect to {}: {e}", path.display())),
         };
         let writer = stream.try_clone().map_err(|e| format!("cannot clone socket: {e}"))?;
-        Ok(Client { sender: Sender(writer), receiver: Receiver(BufReader::new(stream)) })
+        let mut client = Client { sender: Sender(writer), receiver: Receiver(BufReader::new(stream)), warning: None };
+        // One we just started runs this binary. Only a broken connection should fail the command, and the request
+        // that follows reports that by itself.
+        if !started {
+            client.warning = match client.daemon_protocol() {
+                Ok(line) => protocol_warning(protocol::parse_protocol(&line)),
+                Err(e) => Some(format!("cannot check the player: {e}")),
+            };
+        }
+        Ok(client)
+    }
+
+    fn daemon_protocol(&mut self) -> Result<String, String> {
+        self.sender.send(Command::Protocol)?;
+        self.receiver.line()?.ok_or_else(|| "daemon closed the connection".into())
     }
 
     pub fn request(&mut self, cmd: Command) -> Result<State, String> {
@@ -51,13 +67,22 @@ impl Sender {
 impl Receiver {
     /// The next reply or pushed state (`Err` inside for an `err` line); `Ok(None)` once the daemon has gone.
     pub fn recv(&mut self) -> Result<Option<Result<State, String>>, String> {
+        Ok(self.line()?.map(|l| State::parse(&l)))
+    }
+
+    fn line(&mut self) -> Result<Option<String>, String> {
         let mut line = String::new();
         match self.0.read_line(&mut line) {
             Ok(0) => Ok(None),
-            Ok(_) => Ok(Some(State::parse(line.trim_end()))),
+            Ok(_) => Ok(Some(line.trim_end().to_owned())),
             Err(e) => Err(format!("cannot read from daemon: {e}")),
         }
     }
+}
+
+/// Short enough for the GUI's error line (34 characters).
+fn protocol_warning(theirs: &str) -> Option<String> {
+    (!protocol::compatible(theirs, protocol::PROTOCOL)).then(|| "incompatible player: noiseman stop".into())
 }
 
 /// Starts `noiseman daemon` detached (it outlives the terminal), logging to the runtime dir.
@@ -85,5 +110,16 @@ fn start_daemon() -> Result<UnixStream, String> {
             }
             Err(_) => thread::sleep(Duration::from_millis(20)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn warns_on_incompatible_protocol() {
+        assert_eq!(protocol_warning(protocol::PROTOCOL), None);
+        assert!(protocol_warning("99.0.0").is_some_and(|w| w.chars().count() <= 34));
     }
 }

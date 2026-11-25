@@ -35,7 +35,7 @@ impl Player {
             Command::Mute(m) => self.set_muted(m),
             Command::ToggleMute => self.set_muted(!self.muted),
             Command::Quit => self.set_muted(true),
-            Command::Status | Command::Watch => {}
+            Command::Status | Command::Watch | Command::Protocol => {}
         }
     }
 
