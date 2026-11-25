@@ -5,7 +5,7 @@ name: Pages
 on:
   push:
     branches: [main]
-    paths: [crates/core/**, web/**, docs/**, assets/noiseman.svg, .github/workflows/pages.yml]
+    paths: [crates/core/**, web/**, docs/**, assets/noiseman.svg, assets/noiseman-web.png, .github/workflows/pages.yml]
   workflow_dispatch:
 
 permissions:
@@ -38,6 +38,8 @@ jobs:
           cp target/wasm32-unknown-unknown/release/noiseman_web.wasm target/web/noiseman.wasm
           cp assets/noiseman.svg target/web/favicon.svg
           cp docs/architecture.html target/web/architecture/index.html
+          mkdir -p target/web/preview
+          cp assets/noiseman-web.png target/web/preview/noiseman.png
       - uses: actions/upload-pages-artifact@v5
         with:
           path: target/web

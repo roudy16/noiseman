@@ -1,15 +1,18 @@
 # noiseman
 
+**[▶ Try it in your browser](https://roudy16.github.io/noiseman/)**, with nothing to install.
+
 ![The noiseman terminal UI playing brown noise at 50% volume](assets/noiseman-tui.png)
 
-A noise generator (white, pink, brown, blue, violet). A small background
-player owns the audio (cpal); a CLI and a terminal UI control it over a Unix
-socket. An optional window with a system-tray icon is available with the `gui`
-feature. The sound itself lives in a dependency-free core crate (`crates/core`) that also compiles to
-WebAssembly for a browser demo (`web/`). See `DESIGN.md`.
+White, pink, brown, blue or violet noise for focus or sleep, that stays out of your way. A small background player
+makes the sound, and you control it from the terminal: a TUI, or one-line commands (`nsm vol +10`, `nsm toggle`)
+for scripts and keybindings. A window with a tray icon is optional. Playing takes about 1 MB of private memory and
+under 0.1% of one core; muted, the player releases the audio device and sleeps, with no wakeups at all.
 
-- **Try it in the browser:** https://roudy16.github.io/noiseman/
-- **How it works:** https://roudy16.github.io/noiseman/architecture/ (diagrams of the daemon, the sound core and the web demo; source `docs/architecture.html`)
+The player owns the audio (cpal); the CLI and TUI talk to it over a Unix socket. The sound comes from a
+dependency-free core crate (`crates/core`) that also compiles to WebAssembly for the browser demo (`web/`).
+[How it works](https://roudy16.github.io/noiseman/architecture/) has diagrams of the player, the sound core and the
+web demo (source `docs/architecture.html`); `DESIGN.md` has the full design.
 
 ## Install
 

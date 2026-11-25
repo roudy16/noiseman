@@ -91,6 +91,8 @@ web:
     cp assets/noiseman.svg target/web/favicon.svg
     mkdir -p target/web/architecture
     cp docs/architecture.html target/web/architecture/index.html
+    mkdir -p target/web/preview
+    cp assets/noiseman-web.png target/web/preview/noiseman.png
 
 # serve the web demo on http://localhost:8000
 web-serve: web
