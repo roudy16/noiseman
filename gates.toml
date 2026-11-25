@@ -5,13 +5,15 @@
 # local runs.
 
 [size]
-noiseman_bytes = 900_000       # baseline 811,680 (default features, no gui)
-wasm_bytes = 8_192             # baseline 6,237
-web_total_bytes = 20_480       # baseline 19,239 (top-level target/web: page, css, js, wasm, favicon; not preview/ or architecture/)
+noiseman_bytes = 900_000       # default features, no gui
+wasm_bytes = 8_192
+web_total_bytes = 22_528       # top-level target/web: page, css, js, wasm, favicon; not preview/ or architecture/
 
 [dsp]
-# Worst kind: pink/blue ~2.2 ns on the Linux baseline machine (2.9-3.05 before noise.rs's white() change), 3.5-3.6
-# on the i9-11980HK under Windows and WSL Linux alike. Machine dependent: about 2x headroom, for a slower or busy box.
+# Voice::step, as the daemon and the wasm run it: Noise::next plus the gain fade, which costs little once settled (a fade
+# that never settles, as before its snap fix, costs ~2.5 ns more). Worst kind: blue/pink ~2.6-2.8 ns on the Linux
+# baseline machine; Noise::next alone ran 3.5-3.6 on the i9-11980HK under Windows and WSL Linux alike (Voice::step not
+# yet measured there). Machine dependent: about 2x headroom, for a slower or busy box.
 max_ns_per_sample = 6.0
 
 [runtime]
@@ -34,8 +36,9 @@ muted_wakeups_per_s = 0
 # a different machine from the Linux baselines, so compare like with like. Memory is the private working set
 # (resident pages only this process uses); Windows' working set ("RSS") also counts shared system DLL pages. Threads
 # are noiseman's own; Windows adds thread-pool, COM and WASAPI threads, which are not gated. The size and DSP
-# gates are the shared ones in tools/gates.py (needs Python); pink and blue ran at 12-13 ns/sample here until
-# noise.rs stopped converting integers to floats in white() (see its comment); now 3.5-3.6, white 1.8.
+# gates are the shared ones in tools/gates.py (needs Python); with the benchmark's former Noise::next loop, pink and
+# blue ran at 12-13 ns/sample here until noise.rs stopped converting integers to floats in white() (see its comment),
+# then 3.5-3.6, white 1.8.
 playing_private_kb = 1_920     # baseline 1,512-1,548
 playing_rss_kb = 12_288        # baseline 9,920-9,952
 playing_own_threads = 4        # main, accept, 1 client reader, 1 audio (cpal's WASAPI thread)

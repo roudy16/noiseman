@@ -1,12 +1,20 @@
 [workspace]
 members = ["crates/core", "web"]
 
-[package]
-name = "noiseman"
+[workspace.package]
 version = "0.1.1"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/roudy16/noiseman"
+rust-version = "1.89"
+
+[package]
+name = "noiseman"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 
 # Prebuilt archives from the Release workflow (`cargo binstall --git https://github.com/roudy16/noiseman noiseman`).
 [package.metadata.binstall]

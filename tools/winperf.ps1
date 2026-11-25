@@ -105,7 +105,8 @@ try {
     $rd = New-Object IO.StreamReader($conn); $wr = New-Object IO.StreamWriter($conn); $wr.AutoFlush = $true
     $wr.WriteLine('vol 0'); [void]$rd.ReadLine()
     $wr.WriteLine('unmute'); $state = $rd.ReadLine()
-    if ($state -notmatch '^state \S+ 0 playing$') { throw "the daemon could not play: $state" }
+    # protocol.rs: `state <kind> <vol> <playing|muted>[ <error>]`; later fields may be added. Volume 0 keeps it silent.
+    if ($state -notmatch '^state \S+ 0 playing( |$)') { throw "FAIL runtime gates: the daemon could not play silently ($state)" }
 
     Start-Sleep -Milliseconds 300  # stream start-up
     $a = Activity $daemon $Window; $m = Memory $daemon

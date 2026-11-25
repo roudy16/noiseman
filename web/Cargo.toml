@@ -1,8 +1,10 @@
 [package]
 name = "noiseman-web"
-version = "0.1.1"
-edition = "2024"
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 description = "noiseman-core as a dependency-free WebAssembly module for an AudioWorklet."
 publish = false
 

@@ -3,9 +3,10 @@
 
 Expects release builds (`just gates` makes them). The runtime gates start a private daemon (own runtime dir) with
 `--muted`, then `vol 0` + `unmute`: a real PulseAudio stream at zero gain, so it costs what playing costs, silently.
-Without a PulseAudio server, or if the daemon cannot start a stream, they are reported as SKIP. They read /proc, so
-they run on Linux only; elsewhere they are SKIP too, and the size and DSP gates still run. `--sizes-only` (CI, on
-shared runners where timing and resource use mean little) runs only the size gates. Exit status 1 if any gate fails.
+Without a PulseAudio server they are reported as SKIP; with one, a daemon that cannot start a stream fails them. They
+read /proc, so they run on Linux only; elsewhere they are SKIP too, and the size and DSP gates still run. The DSP gate
+fails if the benchmark's output has no line it can read. `--sizes-only` (CI, on shared runners where timing and
+resource use mean little) runs only the size gates. Exit status 1 if any gate fails.
 """
 
 import os
@@ -83,7 +84,10 @@ def sizes(limits: dict) -> None:
 
 def dsp(limits: dict) -> None:
     out = subprocess.run([PROFILE, "all", "20"], capture_output=True, text=True, check=True).stdout
-    for kind, ns in re.findall(r"^(\w+)\s.*?([\d.]+) ns/sample", out, re.M):
+    matches = re.findall(r"^(\w+)\s.*?([\d.]+) ns/sample", out, re.M)
+    if not matches:
+        raise SystemExit(f"FAIL dsp gate: no ns/sample line in noise_profile's output:\n{out}")
+    for kind, ns in matches:
         gate(f"dsp: {kind.lower()} ns/sample", float(ns), limits["max_ns_per_sample"], "ns")
 
 
@@ -121,9 +125,10 @@ def runtime(limits: dict) -> None:
 
         request("vol 0")
         state = request("unmute")
-        if not state.startswith("state ") or state.split()[3] != "playing" or len(state.split()) > 4:
-            print(f"SKIP runtime gates: the daemon could not play ({state})")
-            return
+        # protocol.rs: `state <kind> <vol> <playing|muted>[ <error>]`; later fields may be added.
+        # Volume 0 keeps the real stream silent.
+        if not state.startswith("state ") or state.split()[2:4] != ["0", "playing"]:
+            raise SystemExit(f"FAIL runtime gates: the daemon could not play silently ({state})")
 
         # The daemon alone first: while a TUI runs, the binary's code pages count as shared, not private.
         time.sleep(0.3)  # stream start-up

@@ -14,7 +14,7 @@ Cargo workspace: the root package `noiseman` (the binary), `crates/core` and `we
   - `src/lib.rs`: `Kind` (labels, `from_u8`, `parse`), `gain(vol)` (square law)
   - `src/noise.rs`: `Noise` generators, the one level/bounds test
   - `src/voice.rs`: `Voice::new(rate, seed, kind)` and `step(kind, gain)`: 10 ms gain fade, kind change via silence; its test
-  - `examples/noise_profile.rs`: DSP benchmark for `just profile`
+  - `examples/noise_profile.rs`: DSP benchmark (`Voice::step`, as the daemon and the wasm run it) for `just profile` and the DSP gate
 - `src/main.rs`: `daemon [--muted]` runs `backend::serve`; everything else goes to `frontend::run` (run as `noiseman-gui` with no arguments: `gui`)
 - `build.rs`: on Windows, embeds `assets/noiseman.ico` and version info (`winresource`)
 - `src/protocol.rs`: the only contract between the halves: `Kind` (re-exported from core), `Command`, `State`, their line encoding (`protocol` gets its own reply: `protocol_reply`, `parse_protocol`), `PROTOCOL` (the protocol's own semver, bumped with any protocol change) and `compatible()`, `runtime_dir()` (from `platform`) and `socket_path()`, round-trip test

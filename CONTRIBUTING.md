@@ -7,10 +7,11 @@ gates; the timing and runtime gates are for local runs) on Linux, and clippy and
 
 ## Build from source
 
-**Prerequisites:** Rust 1.89 or newer (edition 2024). On Linux, also `pkg-config` and the ALSA development headers
-(`libasound2-dev` on Debian/Ubuntu, `alsa-lib-devel` on Fedora, `alsa-lib` on Arch). On Windows, the MSVC toolchain:
-Visual Studio or its Build Tools with the "Desktop development with C++" workload, which includes the Windows SDK's
-`rc.exe` for the embedded icon.
+**Prerequisites:** Rust 1.89 or newer (edition 2024; the minimum is `rust-version` in `Cargo.toml`'s
+`[workspace.package]`). On Linux, also `pkg-config` and the ALSA development headers (`libasound2-dev` on
+Debian/Ubuntu, `alsa-lib-devel` on Fedora, `alsa-lib` on Arch). On Windows, the MSVC toolchain: Visual Studio or its
+Build Tools with the "Desktop development with C++" workload, which includes the Windows SDK's `rc.exe` for the
+embedded icon.
 
 ```sh
 git clone https://github.com/roudy16/noiseman.git

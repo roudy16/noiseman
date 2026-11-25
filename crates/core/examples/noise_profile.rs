@@ -2,22 +2,22 @@ use std::hint::black_box;
 use std::process::ExitCode;
 use std::time::Instant;
 
-use noiseman_core::{Kind, Noise};
+use noiseman_core::{Kind, Voice, gain};
 
 const SR: u32 = 48_000;
 const BUFFER_FRAMES: usize = 4096;
 
 fn run(kind: Kind, secs: u64) {
-    let mut n = Noise::new(SR, 0x9E37_79B9_7F4A_7C15);
+    let mut v = Voice::new(SR, 0x9E37_79B9_7F4A_7C15, kind);
     let mut buf = [0.0f32; BUFFER_FRAMES];
     let total = secs * u64::from(SR);
     let buffers = total.div_ceil(BUFFER_FRAMES as u64);
     let start = Instant::now();
     for _ in 0..buffers {
-        // The callback loads KIND once per buffer from an atomic; black_box stands in for that load.
-        let k = black_box(kind);
+        // The callback loads KIND and GAIN once per buffer from atomics; black_box stands in for those loads.
+        let (k, g) = black_box((kind, gain(50)));
         for s in &mut buf {
-            *s = n.next(k);
+            *s = v.step(k, g);
         }
         black_box(&mut buf);
     }
