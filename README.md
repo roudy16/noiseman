@@ -35,14 +35,17 @@ More info > Run anyway at the SmartScreen prompt, or run `Unblock-File` on the .
 ## Use
 
 ```sh
-noiseman              # terminal UI
-noiseman gui          # window, in the gui build (with a tray icon on Linux)
-noiseman play brown   # play in the background: brown, white, blue, pink or violet
-noiseman vol +10      # louder (or vol 30, vol -10)
-noiseman toggle       # mute or unmute
-noiseman stop         # stop the player
-noiseman help         # every command
+nsm              # terminal UI
+nsm gui          # window, in the gui build (with a tray icon on Linux)
+nsm play brown   # play in the background: brown, white, blue, pink or violet
+nsm vol +10      # louder (or vol 30, vol -10)
+nsm toggle       # mute or unmute
+nsm stop         # stop the player
+nsm help         # every command
 ```
+
+`nsm` is the installers' short alias for `noiseman`. They skip it if another `nsm` is already installed; then use
+`noiseman`.
 
 In the terminal UI, `1`-`5` pick a noise, `↑`/`↓` or `k`/`j` cycle it, `←`/`→` or `h`/`l` change the volume, `m` or
 space mutes, and `s` stops. `q` or `Esc` closes the UI and leaves the noise playing. The window takes the same keys
