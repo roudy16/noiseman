@@ -47,6 +47,14 @@ gates: web
     cargo build -q --release -p noiseman-core --example noise_profile
     python3 tools/gates.py
 
+# Windows runtime gates (the counterparts of gates' /proc ones) plus the GUI at idle; limits in gates.toml [windows].
+# Pass runs=5 to print ranges for re-baselining instead of gating.
+gates-windows runs="1":
+    cargo build -q --release --features gui
+    cp target/release/noiseman.exe target/release/noiseman-gui.exe
+    cargo build -q --release
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/winperf.ps1 -Bin target/release/noiseman.exe -GuiBin target/release/noiseman-gui.exe -Runs {{ runs }}
+
 # dependency health (network, ~1 s): advisories for every locked crate (OSV/RustSec), and drift of direct
 # dependencies and vendored crates from their latest stable release; exits 1 only on a vulnerability
 deps:

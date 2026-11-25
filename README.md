@@ -114,13 +114,23 @@ demo's WebAssembly is built only from `crates/core` and `web/`, with no third-pa
 
 ## TODO
 
-- [ ] **Windows performance baseline.** The runtime gates (daemon memory,
-  threads, CPU, wakeups; TUI and CLI memory) read `/proc`, so `just gates`
-  skips them on Windows and only the size and DSP gates run there. Measure the
-  daemon on Windows (e.g. working set, private bytes, thread count and context
-  switches via the process APIs or `Get-Process`/ETW), playing and muted, and
-  either extend `tools/gates.py` or record baselines in `gates.toml`. Do this
-  before the GUI scaling change below, so that change is measured against it.
+- [x] **Windows performance baseline.** `just gates-windows`
+  (`tools/winperf.ps1`) measures the daemon playing and muted, the TUI, the
+  CLI and the GUI at idle; baselines and limits are in `gates.toml`
+  `[windows]`.
+- [ ] **Pink and blue DSP speed (seen on Windows).** On the Windows baseline
+  machine, `noise_profile` runs pink at 12.7 and blue at 13.6 ns/sample, about
+  7x white (1.8), over the 6.0 ns `max_ns_per_sample` gate. The cause found so
+  far: `Noise::pink_raw` (Kellet's filter, `crates/core/src/noise.rs`) is not
+  inlined into the sample loop on x86_64-pc-windows-msvc, so each sample pays a
+  call that saves and restores xmm6/xmm7 (callee-saved in the Windows x64 ABI)
+  and goes through the seven filter states in memory. A trial
+  `#[inline(always)]` on `pink_raw` brought pink to 6.3-8.1 and blue to
+  4.8-7.2 ns/sample: about half, but still noisy and sometimes over the gate,
+  so something else costs too (check whether `Noise::next` itself is inlined,
+  and the filter's serial dependency chain). Before changing the core, run
+  `noise_profile all 20` on Linux to see whether it has the same pattern
+  there, and rerun both after any fix (the web demo shares this code).
 - [ ] **GUI on fractional display scaling.** The window asks for 312x124
   logical pixels, but the bitmap font only draws at whole-number scales, so at
   a fractional OS scale the controls leave an empty band on the right and at
@@ -128,8 +138,9 @@ demo's WebAssembly is built only from `crates/core` and `web/`, with no third-pa
   Linux with fractional scaling has the same gap. Fix: pick a whole scale from
   the scale factor (e.g. round 2.5 up to 3), size the window to exactly
   WIN_W x WIN_H times that in physical pixels, and redo it on
-  `WindowEvent::ScaleFactorChanged` (moving between monitors). Waits on the
-  Windows performance baseline above.
+  `WindowEvent::ScaleFactorChanged` (moving between monitors). Measure it
+  against the Windows GUI baseline (`gates.toml` `[windows]` `gui_*`); a 3x
+  framebuffer is larger than today's 2x.
 - [ ] **Rain and thunderstorm.** Two more kinds: steady rain, and rain with
   occasional thunder (a noise bed plus sparse droplet transients; thunder as
   rare low-passed rumbles). Each sets its own readable TUI theme, as the
