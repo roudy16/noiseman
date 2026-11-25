@@ -35,6 +35,52 @@ verify() {
     fi || die "checksum mismatch, not installing"
 }
 
+# Refuse, before downloading, the systems the prebuilt binaries cannot run on, saying why. What only shows when the
+# binary runs (glibc too old, a missing library) is explained by explain_failure.
+check_system() {
+    os=$1 target=$2
+    if [ "$os" = Darwin ]; then
+        major=$(sw_vers -productVersion 2>/dev/null | cut -d. -f1)
+        if [ -n "$major" ] && [ "$major" -lt 11 ]; then
+            die "needs macOS 11 or newer; this Mac has $(sw_vers -productVersion)"
+        fi
+        return
+    fi
+    if [ -e /etc/NIXOS ] && [ -z "${NIX_LD:-}" ]; then
+        die "NixOS runs prebuilt Linux binaries only with nix-ld (programs.nix-ld.enable = true); or build from source ($repo)"
+    fi
+    if ldd --version 2>&1 | grep -qi musl; then
+        die "this system uses musl libc (as Alpine does); the prebuilt binaries need glibc, so build from source ($repo)"
+    fi
+    case $target in
+        x86_64-*) loader=/lib64/ld-linux-x86-64.so.2 ;;
+        *) loader=/lib/ld-linux-aarch64.so.1 ;;
+    esac
+    [ -e "$loader" ] ||
+        die "no 64-bit glibc loader ($loader): the prebuilt binaries need 64-bit glibc, and this looks like a 32-bit or non-glibc system on a 64-bit kernel; build from source ($repo)"
+    for tool in tar gzip; do
+        command -v "$tool" >/dev/null 2>&1 || die "needs $tool to unpack the download"
+    done
+}
+
+# Why the downloaded binary would not run, from the loader's message.
+explain_failure() {
+    err=$1
+    case $err in
+        *libasound.so.2*)
+            die "needs the ALSA library (libasound.so.2), which is missing: install libasound2 (Debian, Ubuntu, openSUSE) or alsa-lib (Fedora, RHEL, Arch), then run this again"
+            ;;
+        *GLIBC_*)
+            need=$(echo "$err" | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -t. -k1,1n -k2,2n | tail -n 1)
+            have=$(getconf GNU_LIBC_VERSION 2>/dev/null | cut -d' ' -f2)
+            die "needs glibc $need or newer; this system has ${have:-an older one} (Ubuntu 22.04, Debian 12, Fedora 36 and later have it); build from source ($repo)"
+            ;;
+        *)
+            die "the $target binary does not run here: ${err:-no error message}; build from source ($repo)"
+            ;;
+    esac
+}
+
 link_nsm() {
     dir=$1
     # Never replace or shadow someone else's `nsm`: warn and leave it be.
@@ -89,8 +135,10 @@ main() {
         Linux-aarch64 | Linux-arm64) target=aarch64-unknown-linux-gnu ;;
         Darwin-arm64) target=aarch64-apple-darwin ;;
         Darwin-x86_64) target=x86_64-apple-darwin ;;
-        *) die "no prebuilt binary for $(uname -s) $(uname -m); build from source ($repo)" ;;
+        Linux-* | Darwin-*) die "prebuilt binaries are for 64-bit x86 and ARM only; this is $(uname -m), so build from source ($repo)" ;;
+        *) die "no prebuilt binary for $(uname -s); build from source ($repo)" ;;
     esac
+    check_system "$os" "$target"
     if [ -n "${NOISEMAN_VERSION:-}" ]; then
         base=$repo/releases/download/$NOISEMAN_VERSION
     else
@@ -111,9 +159,7 @@ main() {
     fetch "$base/$name.tar.gz.sha256" "$tmp/$name.tar.gz.sha256"
     (cd "$tmp" && verify "$name.tar.gz.sha256")
     tar -xzf "$tmp/$name.tar.gz" -C "$tmp"
-    # uname reports the kernel: a musl, 32-bit or too-old userland only shows when the binary runs.
-    "$tmp/$name/noiseman" help >/dev/null 2>&1 ||
-        die "the $target binary does not run here (it needs glibc 2.35+ on Linux); build from source ($repo)"
+    err=$("$tmp/$name/noiseman" help 2>&1 >/dev/null) || explain_failure "$err"
     # A running player keeps running the replaced binary; stop it (`status` never starts one) so this version takes over.
     stopped=
     if [ -x "$dir/noiseman" ] && "$dir/noiseman" status >/dev/null 2>&1; then

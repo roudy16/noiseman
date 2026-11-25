@@ -3,6 +3,15 @@
 All notable changes to noiseman. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- `install.sh` says why noiseman cannot run on a system instead of blaming the glibc version: a missing ALSA library
+  (with the package to install), a glibc older than the binary needs (with both versions), musl (Alpine), NixOS
+  without nix-ld, a 32-bit system, a CPU other than 64-bit x86 or ARM, or macOS older than 11. The checks that need no
+  download run before it.
+
 ## [0.1.1] - 2026-11-25
 
 ### Added
