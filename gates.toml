@@ -7,7 +7,7 @@
 [size]
 noiseman_bytes = 900_000       # baseline 811,680 (default features, no gui)
 wasm_bytes = 8_192             # baseline 6,237
-web_total_bytes = 20_480       # baseline 19,690 (top-level target/web: page, css, js, wasm, favicon; not preview/ or architecture/)
+web_total_bytes = 20_480       # baseline 19,239 (top-level target/web: page, css, js, wasm, favicon; not preview/ or architecture/)
 
 [dsp]
 # Worst kind: pink/blue ~2.2 ns on the Linux baseline machine (2.9-3.05 before noise.rs's white() change), 3.5-3.6

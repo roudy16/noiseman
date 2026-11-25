@@ -17,6 +17,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- A new icon matches the apps' logo: six bars of uneven heights on a dark tile. Linux also gets 16-32 px sizes, so
+  trays and title bars show crisp bars rather than a scaled-down large icon.
 - The noises are now ordered Brown, White, Blue, Pink, Violet, so keys `1`-`5` pick them in that order
   (they were White, Pink, Brown, Blue, Violet). Brown stays the default.
 - One key map everywhere: `↑`/`k` picks the next noise and `↓`/`j` the previous one, in the terminal UI, the window

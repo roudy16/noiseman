@@ -35,7 +35,7 @@ for python in python3 python py ""; do "$python" -c "" 2>/dev/null && break; don
 if [[ $target == *linux* ]]; then
     # Icons and desktop entry for install.sh: the window and tray look the icon up by name.
     install -Dm644 assets/noiseman.svg "$dist/$name/share/icons/scalable/apps/noiseman.svg"
-    for s in 48 64 128 256; do
+    for s in 16 22 24 32 48 64 128 256; do
         install -Dm644 "assets/noiseman-$s.png" "$dist/$name/share/icons/${s}x${s}/apps/noiseman.png"
     done
     # The template opens the window; the terminal build's entry runs the TUI in a terminal instead.

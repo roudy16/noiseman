@@ -95,7 +95,7 @@ _install variant:
     [[ $(uname -s) == Linux ]] || exit 0
     share="$HOME/.local/share"
     install -Dm644 assets/noiseman.svg "$share/icons/hicolor/scalable/apps/noiseman.svg"
-    for s in 48 64 128 256; do
+    for s in 16 22 24 32 48 64 128 256; do
         install -Dm644 assets/noiseman-$s.png "$share/icons/hicolor/${s}x${s}/apps/noiseman.png"
     done
     install -d "$share/applications"
