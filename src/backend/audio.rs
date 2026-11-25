@@ -123,9 +123,7 @@ fn build<T: SizedSample + FromSample<f32>>(
     let data = move |data: &mut [T], _: &OutputCallbackInfo| {
         let want = kind();
         let gain = f32::from_bits(GAIN.load(Relaxed));
-        for frame in data.chunks_mut(channels) {
-            frame.fill(T::from_sample(v.step(want, gain)));
-        }
+        v.fill(data.chunks_mut(channels), want, gain, |frame, s| frame.fill(T::from_sample(s)));
     };
     let error = move |e: cpal::Error| {
         log!("noiseman: audio stream error ({:?}): {e}", e.kind());

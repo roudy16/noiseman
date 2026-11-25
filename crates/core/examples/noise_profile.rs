@@ -16,9 +16,7 @@ fn run(kind: Kind, secs: u64) {
     for _ in 0..buffers {
         // The callback loads KIND and GAIN once per buffer from atomics; black_box stands in for those loads.
         let (k, g) = black_box((kind, gain(50)));
-        for s in &mut buf {
-            *s = v.step(k, g);
-        }
+        v.fill(&mut buf, k, g, |s, x| *s = x);
         black_box(&mut buf);
     }
     let elapsed = start.elapsed();

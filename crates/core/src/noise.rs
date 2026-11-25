@@ -62,6 +62,12 @@ impl Noise {
     }
 
     pub fn next(&mut self, kind: Kind) -> f32 {
+        self.sample(kind)
+    }
+
+    /// `next`, always inlined, so `Voice::fill`'s loop over one constant kind compiles to that generator alone.
+    #[inline(always)]
+    pub(crate) fn sample(&mut self, kind: Kind) -> f32 {
         let s = match kind {
             Kind::White => self.white() * WHITE_GAIN,
             Kind::Pink => self.pink_raw() * PINK_GAIN,

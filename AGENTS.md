@@ -13,8 +13,8 @@ Cargo workspace: the root package `noiseman` (the binary), `crates/core` and `we
 - `crates/core/` (`noiseman-core`; no dependencies, no I/O, no allocation)
   - `src/lib.rs`: `Kind` (labels, `from_u8`, `parse`), `gain(vol)` (square law)
   - `src/noise.rs`: `Noise` generators, the one level/bounds test
-  - `src/voice.rs`: `Voice::new(rate, seed, kind)` and `step(kind, gain)`: `FADE_SECS` (100 ms) S-curve gain fade, kind change via silence; its tests
-  - `examples/noise_profile.rs`: DSP benchmark (`Voice::step`, as the daemon and the wasm run it) for `just profile` and the DSP gate
+  - `src/voice.rs`: `Voice::new(rate, seed, kind)` and `fill(out, kind, gain, write)` (one buffer; the generator is matched once per buffer, not per sample): `FADE_SECS` (100 ms) S-curve gain fade, kind change via silence; its tests, including `fill` against the per-sample `step` (test-only)
+  - `examples/noise_profile.rs`: DSP benchmark (`Voice::fill` per 4096-frame buffer, as the daemon runs it) for `just profile` and the DSP gate
 - `src/main.rs`: `daemon [--muted]` runs `backend::serve`; everything else goes to `frontend::run` (run as `noiseman-gui` with no arguments: `gui`)
 - `build.rs`: on Windows, embeds `assets/noiseman.ico` and version info (`winresource`)
 - `src/protocol.rs`: the only contract between the halves: `Kind` (re-exported from core), `Command`, `State`, their line encoding (`protocol` gets its own reply: `protocol_reply`, `parse_protocol`), `PROTOCOL` (the protocol's own semver, bumped with any protocol change) and `compatible()`, `runtime_dir()` (from `platform`) and `socket_path()`, round-trip test
@@ -33,7 +33,7 @@ Cargo workspace: the root package `noiseman` (the binary), `crates/core` and `we
   - `tui.rs`: crossterm screen (refuses to start without a terminal); one thread reads keys, one reads pushed states, the main thread draws
   - `gui/mod.rs`, `gui/tray.rs` (`gui` feature): the window and ksni tray as a protocol client
 - `web/` (`noiseman-web`, cdylib for `wasm32-unknown-unknown`)
-  - `src/lib.rs`: `synth_init(rate, seed, kind)`, `synth_render(kind, vol, frames) -> *const f32` over one static synth; no wasm-bindgen, no heap
+  - `src/lib.rs`: `synth_init(rate, seed, kind)`, `synth_render(kind, vol, frames) -> *const f32` over one static synth and a separate all-zero buffer (so it costs no module bytes); no wasm-bindgen, no heap
   - `site/`: `index.html`, `style.css`, `app.js` (controls, keys, localStorage, AudioContext lifecycle), `worklet.js` (AudioWorkletProcessor calling the wasm)
 
 ## Invariants

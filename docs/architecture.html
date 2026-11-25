@@ -105,7 +105,7 @@ a { color: var(--accent); }
   <div class="eyebrow">Architecture · <a href="https://github.com/roudy16/noiseman">noiseman on GitHub</a>
     · <a href="../">Try the demo</a></div>
   <h1>How noiseman makes noise</h1>
-  <p class="lede">A small background daemon owns the audio. The CLI, TUI and optional GUI control it by sending text lines over a Unix socket. The noise itself comes from one dependency-free Rust crate that also compiles to a 6 KB WebAssembly module for the browser demo.</p>
+  <p class="lede">A small background daemon owns the audio. The CLI, TUI and optional GUI control it by sending text lines over a Unix socket. The noise itself comes from one dependency-free Rust crate that also compiles to a 4 KB WebAssembly module for the browser demo.</p>
   <div class="spectrum" aria-hidden="true"><span style="background:var(--k-brown)"></span><span style="background:var(--k-white)"></span><span style="background:var(--k-blue)"></span><span style="background:var(--k-pink)"></span><span style="background:var(--k-violet)"></span></div>
 </header>
 
@@ -168,7 +168,7 @@ a { color: var(--accent); }
 
 <section>
   <h2>Inside the daemon</h2>
-  <p>One player thread owns all playback state and handles messages one at a time from a single channel. Per-client socket readers parse incoming lines (answering syntax errors and the <code>protocol</code> request directly) and forward the other commands to that channel; the audio error callback logs every error and posts <code>AudioLost</code> to the same channel when the device or stream is gone. The audio callback never takes a lock: it reads the requested kind and gain from two atomics once per buffer and renders every frame with its own <code>Voice</code>.</p>
+  <p>One player thread owns all playback state and handles messages one at a time from a single channel. Per-client socket readers parse incoming lines (answering syntax errors and the <code>protocol</code> request directly) and forward the other commands to that channel; the audio error callback logs every error and posts <code>AudioLost</code> to the same channel when the device or stream is gone. The audio callback never takes a lock: it reads the requested kind and gain from two atomics once per buffer and renders the buffer with its own <code>Voice</code>, choosing the noise generator once per buffer rather than per sample.</p>
   <figure>
     <div class="plate">
       <svg viewBox="0 0 780 380" role="img" aria-label="Clients feed per-client reader threads, which answer parse errors and protocol requests themselves and post other commands to one mpsc channel read by the player thread. The player stores kind and gain in atomics, which the audio callback loads once per buffer. Lost audio is posted back to the same channel.">
@@ -211,7 +211,7 @@ a { color: var(--accent); }
 
         <rect class="box" x="570" y="290" width="190" height="60" rx="6"/>
         <text x="665" y="314" text-anchor="middle">audio callback</text>
-        <text class="sub" x="665" y="333" text-anchor="middle">cpal thread · Voice::step per frame</text>
+        <text class="sub" x="665" y="333" text-anchor="middle">cpal thread · Voice::fill per buffer</text>
         <path class="edge" d="M665,240 L665,288" marker-end="url(#a2)"/>
         <text class="lbl" x="673" y="269">load once per buffer</text>
 
@@ -322,7 +322,7 @@ a { color: var(--accent); }
 
 <section>
   <h2>In the browser</h2>
-  <p>The web demo wraps <code>noiseman-core</code> in a raw WASM module with two exports (<code>synth_init</code> and <code>synth_render</code>) and no <code>wasm-bindgen</code>. The synth lives in static memory, so the module has no heap and stays near 6 KB. After setup, the page only sends the worklet two numbers: <code>kind</code> and <code>vol</code>.</p>
+  <p>The web demo wraps <code>noiseman-core</code> in a raw WASM module with two exports (<code>synth_init</code> and <code>synth_render</code>) and no <code>wasm-bindgen</code>. The synth lives in static memory, so the module has no heap and stays near 4 KB. After setup, the page only sends the worklet two numbers: <code>kind</code> and <code>vol</code>.</p>
   <figure>
     <div class="plate">
       <svg viewBox="0 0 780 250" role="img" aria-label="The page compiles noiseman.wasm and hands the module to an AudioWorklet. Controls post kind and volume to the worklet, which calls synth_render each block and copies from a cached view of wasm memory to the output.">
@@ -386,9 +386,9 @@ a { color: var(--accent); }
         <tr><td>Daemon playing, wakeups</td><td class="n">20–25 /s</td></tr>
         <tr><td>Daemon muted (no clients), threads · wakeups</td><td class="n">2 · 0 /s</td></tr>
         <tr><td>TUI, private memory</td><td class="n">224–232 kB</td></tr>
-        <tr><td>Core DSP, worst kind</td><td class="n">≈ 2.5–2.7 ns/sample (brown)</td></tr>
-        <tr><td>noiseman.wasm</td><td class="n">6,524 B</td></tr>
-        <tr><td>Whole web demo</td><td class="n">19,631 B</td></tr>
+        <tr><td>Core DSP, worst kind</td><td class="n">≈ 2.4–2.5 ns/sample (blue)</td></tr>
+        <tr><td>noiseman.wasm</td><td class="n">4,273 B</td></tr>
+        <tr><td>Whole web demo</td><td class="n">17,380 B</td></tr>
       </tbody>
     </table>
   </div>

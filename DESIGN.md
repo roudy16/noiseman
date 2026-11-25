@@ -42,7 +42,7 @@ noiseman is a single-window Rust desktop app for Linux, Windows and macOS. It pl
 | Errors | Hand-written `AudioError { NoDevice, Format(SampleFormat), Cpal(cpal::Error) }` with `From` and `Display`. Errors are logged with `eprintln!` plus context and reported to frontends in `State.error` | Explicit errors with no extra dependency | thiserror, anyhow, log, env_logger |
 | Build profile | `opt-level="s"`, `lto=true`, `codegen-units=1`, `panic="abort"`, `strip=true` | Binary size is the cost that matters; DSP speed is too small to measure. `panic=abort` means a panic in the callback can never unwind across FFI. Compare against `opt-level=3` once | Default release profile |
 | Packaging | Per-target `.tar.gz`, or `.zip` for Windows, in two variants: `noiseman-<target>` (terminal build) and `noiseman-gui-<target>` (with `gui`), each with the binary, LICENSE, README, that variant's third-party licenses, Linux icons and desktop entry (window or terminal UI), and in the gui variant Windows `noiseman-gui.exe`, from `tools/package.sh TARGET [gui]`, built for Linux, macOS and Windows by `.github/workflows/release.yml` on a `v*` tag; `tools/install.sh`, `tools/install.ps1` (the gui variant with `NOISEMAN_GUI=1`) or `cargo binstall` (terminal build) installs it | Prebuilt binaries without a packaging toolchain | .msi, .app/.dmg, Flatpak (deferred) |
-| Tests | `#[cfg(test)]` in `noise.rs` (level and bounds), `voice.rs` (fade length, S-curve landing exactly, kind change through silence, retarget continuity), `protocol.rs` (round trip), `tui.rs` (color mapping) and `platform/mod.rs` (the socket contract both OS backends must meet) | Checks level and boundedness, which is where the bugs are (see §4), plus the fade and the wire format | Benchmark harness, per-function test suites |
+| Tests | `#[cfg(test)]` in `noise.rs` (level and bounds), `voice.rs` (fade length, S-curve landing exactly, kind change through silence, retarget continuity, fill bit-exact with per-sample step), `protocol.rs` (round trip), `tui.rs` (color mapping) and `platform/mod.rs` (the socket contract both OS backends must meet) | Checks level and boundedness, which is where the bugs are (see §4), plus the fade and the wire format | Benchmark harness, per-function test suites |
 
 **Build prerequisites (Linux):** a Rust toolchain, `pkg-config` and `libasound2-dev` (cpal's ALSA host is always compiled in, even with the `pulseaudio` feature). No C++ toolchain. The wxDragon prerequisites (CMake, a C++ compiler, GTK3 and libclang headers, MSVC on Windows) went with wxDragon on 2026-11-23.
 
@@ -133,7 +133,8 @@ impl Noise {
 pub struct Voice { noise: Noise, playing: Kind, level: f32, from: f32, target: f32, left: u32, len: u32, inv_len: f32 }
 impl Voice {
     pub fn new(sample_rate: u32, seed: u64, kind: Kind) -> Self;   // level starts at 0
-    pub fn step(&mut self, want: Kind, gain: f32) -> f32;          // one sample, faded over FADE_SECS
+    // one sample per item of out through write, faded over FADE_SECS; the generator is chosen per buffer
+    pub fn fill<O>(&mut self, out: impl IntoIterator<Item = O>, want: Kind, gain: f32, write: impl FnMut(O, f32));
 }
 
 // src/backend/audio.rs
@@ -164,20 +165,19 @@ pub struct Player {
 ```rust
 let want = kind();
 let gain = f32::from_bits(GAIN.load(Relaxed));
-for frame in data.chunks_mut(channels) {
-    frame.fill(T::from_sample(v.step(want, gain)));   // mono to all channels
-}
+v.fill(data.chunks_mut(channels), want, gain, |frame, s| frame.fill(T::from_sample(s)));   // mono to all channels
 
-// Voice::step (settled: one well-predicted branch):
+// Voice::fill: match self.playing once, then a loop specialised to that kind's generator, per sample
+// (settled: one well-predicted branch):
 if self.left > 0 || want != self.playing || gain != self.target {
     let target = if want == self.playing { gain } else { 0.0 };
     if target != self.target { (self.from, self.target, self.left) = (self.level, target, self.len); }
     self.left = self.left.saturating_sub(1);
     let u = self.left as f32 * self.inv_len;    // 0 on the last sample: lands exactly on target
     self.level = target + (self.from - target) * (u * u * (3.0 - 2.0 * u));
-    if want != self.playing && self.left == 0 { self.playing = want; }
-}
-self.noise.next(self.playing) * self.level
+    if want != self.playing && self.left == 0 { self.playing = want; }   // this sample uses the new kind, then
+}                                                                         // the rest of the buffer re-dispatches
+sample(&mut self.noise) * self.level
 ```
 
 ### Data flow
@@ -191,7 +191,7 @@ self.noise.next(self.playing) * self.level
  player thread (blocks when idle)                      cpal RT thread (only while stream exists)
  ┌──────────────────────────────────────┐              ┌──────────────────────────────────────┐
  │ Kind cmd ── set_kind ────────────────┼──► KIND ────►│ load once per buffer                 │
- │ Vol cmd  ── set_gain(gain(vol)) ─────┼──► GAIN ────►│ Voice::step(want, gain)              │
+ │ Vol cmd  ── set_gain(gain(vol)) ─────┼──► GAIN ────►│ Voice::fill(frames, want, gain)      │
  │ Mute cmd ── mute/unmute (below)      │              │ → T::from_sample → every channel     │
  │ Player.stream: Option<Output>        │              └──────────────────┬───────────────────┘
  │ audio_lost() ◄── Msg::AudioLost ─────┼──────────── cpal err callback ◄─┘ (DeviceNotAvailable |

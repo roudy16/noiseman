@@ -20,7 +20,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - At volumes from about 30% up, the volume fade never quite reached its target, so the player kept computing it for
-  every sample: playing now costs about half the CPU it did in the sound code.
+  every sample: playing now costs about half the CPU it did in the sound code, and brown noise (the default) about
+  half again, since the noise generator is chosen once per buffer instead of every sample. The web demo's module
+  shrinks from 6.1 to 4.2 KB.
 
 ## [0.1.1] - 2026-11-25
 
