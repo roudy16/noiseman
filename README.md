@@ -6,6 +6,8 @@ socket. An optional window with a system-tray icon is available with the `gui`
 feature. The sound itself lives in a dependency-free core crate (`crates/core`) that also compiles to
 WebAssembly for a browser demo (`web/`). See `DESIGN.md`.
 
+**Try it in the browser:** https://roudy16.github.io/noiseman/
+
 ## Usage
 
 - `noiseman`: terminal UI. `1`–`5`, `↑`/`↓` or Tab noise, `←`/`→` volume, `m`/Space mute,
