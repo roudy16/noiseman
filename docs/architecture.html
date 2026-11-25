@@ -106,12 +106,12 @@ a { color: var(--accent); }
     · <a href="../">Try the demo</a></div>
   <h1>How noiseman makes noise</h1>
   <p class="lede">A small background daemon owns the audio. The CLI, TUI and optional GUI control it by sending text lines over a Unix socket. The noise itself comes from one dependency-free Rust crate that also compiles to a 6 KB WebAssembly module for the browser demo.</p>
-  <div class="spectrum" aria-hidden="true"><span style="background:var(--k-white)"></span><span style="background:var(--k-pink)"></span><span style="background:var(--k-brown)"></span><span style="background:var(--k-blue)"></span><span style="background:var(--k-violet)"></span></div>
+  <div class="spectrum" aria-hidden="true"><span style="background:var(--k-brown)"></span><span style="background:var(--k-white)"></span><span style="background:var(--k-blue)"></span><span style="background:var(--k-pink)"></span><span style="background:var(--k-violet)"></span></div>
 </header>
 
 <section>
   <h2>The whole system</h2>
-  <p>noiseman has two halves and one shared core. Frontends never import backend code: everything they know about the player arrives as <code>state</code> or <code>err</code> lines on the socket. Both the daemon and the web demo generate samples from <code>noiseman-core</code>, so every noise kind sounds the same in both.</p>
+  <p>noiseman has two halves and one shared core. Frontends never import backend code: everything they know about the player arrives on the socket as <code>state</code> or <code>err</code> lines, or the one <code>protocol</code> reply. Both the daemon and the web demo generate samples from <code>noiseman-core</code>, so every noise kind sounds the same in both.</p>
   <figure>
     <div class="plate">
       <svg viewBox="0 0 780 330" role="img" aria-label="Frontends talk to the daemon over a Unix socket; the daemon's audio callback and the browser worklet both use noiseman-core.">
@@ -123,7 +123,7 @@ a { color: var(--accent); }
         <text class="zlbl" x="22" y="40">frontends</text>
         <rect class="box" x="30" y="56" width="120" height="36" rx="6"/><text x="90" y="79" text-anchor="middle">CLI</text>
         <rect class="box" x="30" y="106" width="120" height="36" rx="6"/><text x="90" y="129" text-anchor="middle">TUI</text>
-        <rect class="box" x="30" y="156" width="120" height="36" rx="6"/><text x="90" y="179" text-anchor="middle">GUI + tray</text>
+        <rect class="box" x="30" y="156" width="120" height="36" rx="6"/><text x="90" y="179" text-anchor="middle">GUI (+ tray)</text>
 
         <path class="edge" d="M150,74 L240,112" marker-start="url(#a1)" marker-end="url(#a1)"/>
         <path class="edge" d="M150,124 L240,124" marker-start="url(#a1)" marker-end="url(#a1)"/>
@@ -162,16 +162,16 @@ a { color: var(--accent); }
         <text class="lbl" x="652" y="281" text-anchor="middle">wasm32</text>
       </svg>
     </div>
-    <figcaption>The TUI, GUI and most CLI commands start the daemon if none is running (detached, so it outlives the terminal: <code>setsid</code> on Unix, its own process group on Windows); <code>status</code>, <code>mute</code> and <code>stop</code> never do. Leaving the CLI or TUI keeps the noise playing; in the GUI, closing the window hides it to the system tray (or stops the daemon if no tray is available).</figcaption>
+    <figcaption>The TUI, GUI and most CLI commands start the daemon if none is running (detached, so it outlives the terminal: <code>setsid</code> on Unix, its own process group on Windows); <code>status</code>, <code>mute</code> and <code>stop</code> never do. Leaving the CLI or TUI keeps the noise playing; in the GUI, closing the window hides it to the system tray on Linux, and elsewhere (or with no tray running) stops the daemon.</figcaption>
   </figure>
 </section>
 
 <section>
   <h2>Inside the daemon</h2>
-  <p>One player thread owns all playback state and handles messages one at a time from a single channel. Per-client socket readers parse incoming lines (answering syntax errors directly) and forward valid commands to that channel; the audio error path posts <code>AudioLost</code> to the same channel. The audio callback never takes a lock: it reads the requested kind and gain from two atomics once per buffer and renders every frame with its own <code>Voice</code>.</p>
+  <p>One player thread owns all playback state and handles messages one at a time from a single channel. Per-client socket readers parse incoming lines (answering syntax errors and the <code>protocol</code> request directly) and forward the other commands to that channel; the audio error callback logs every error and posts <code>AudioLost</code> to the same channel when the device or stream is gone. The audio callback never takes a lock: it reads the requested kind and gain from two atomics once per buffer and renders every frame with its own <code>Voice</code>.</p>
   <figure>
     <div class="plate">
-      <svg viewBox="0 0 780 380" role="img" aria-label="Clients feed per-client reader threads, which post commands to one mpsc channel read by the player thread. The player stores kind and gain in atomics, which the audio callback loads once per buffer. Lost audio is posted back to the same channel.">
+      <svg viewBox="0 0 780 380" role="img" aria-label="Clients feed per-client reader threads, which answer parse errors and protocol requests themselves and post other commands to one mpsc channel read by the player thread. The player stores kind and gain in atomics, which the audio callback loads once per buffer. Lost audio is posted back to the same channel.">
         <defs>
           <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="head"/></marker>
           <marker id="a2h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="headhot"/></marker>
@@ -220,7 +220,7 @@ a { color: var(--accent); }
         <text class="sub" x="510" y="340" text-anchor="middle">error callback</text>
       </svg>
     </div>
-    <figcaption>While playing with one client connected, the daemon runs six threads: main (the player), accept, one client reader, and three audio threads owned by cpal and PulseAudio. If a write times out after 200 ms, that client is dropped so it cannot stall the player.</figcaption>
+    <figcaption>On Linux, while playing with one client connected, the daemon runs six threads: main (the player), accept, one client reader, and three audio threads (the pulseaudio client's reactor, which runs the callback, and cpal's driver and latency threads). On Windows a single cpal WASAPI thread replaces those three, for four of noiseman&rsquo;s own (Windows adds thread-pool and COM threads). If a write times out after 200 ms, that client is dropped so it cannot stall the player.</figcaption>
   </figure>
 </section>
 
@@ -257,7 +257,7 @@ a { color: var(--accent); }
         <text class="lbl" x="390" y="218" text-anchor="middle">unmute: open a new stream</text>
       </svg>
     </div>
-    <figcaption>The player thread uses <code>recv_timeout</code> only while a fade is pending; otherwise it blocks in <code>recv</code>. Quitting mutes first and waits out the same deadline, so the sound never ends with a click. If the device goes away while playing, the player opens a new stream.</figcaption>
+    <figcaption>The player thread uses <code>recv_timeout</code> only while a fade is pending; otherwise it blocks in <code>recv</code>. Quitting mutes first and waits out the same deadline, so the sound never ends with a click. Each stream opens the default output in the device&rsquo;s own format (on Linux through PulseAudio or pipewire-pulse, falling back to ALSA only when no pulse server can be reached; if both fail the error is <code>no PulseAudio server</code>) and follows a new default output: the PulseAudio stream is opened on the default sink without pinning a device, so the server moves it, CoreAudio's default output unit follows too, and on Windows the change ends the stream and the player opens a new one. If the device goes away while playing, the player opens a new stream.</figcaption>
   </figure>
 </section>
 
