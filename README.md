@@ -6,9 +6,8 @@ socket. An optional window with a system-tray icon is available with the `gui`
 feature. The sound itself lives in a dependency-free core crate (`crates/core`) that also compiles to
 WebAssembly for a browser demo (`web/`). See `DESIGN.md`.
 
-**Try it in the browser:** https://roudy16.github.io/noiseman/ · **How it works:**
-https://roudy16.github.io/noiseman/architecture/ (diagrams of the daemon, the sound core and the web demo;
-source `docs/architecture.html`)
+- **Try it in the browser:** https://roudy16.github.io/noiseman/
+- **How it works:** https://roudy16.github.io/noiseman/architecture/ (diagrams of the daemon, the sound core and the web demo; source `docs/architecture.html`)
 
 ## Install
 
@@ -30,7 +29,7 @@ To include the optional window and (on Linux) system-tray icon:
 cargo install --path . --features gui
 ```
 
-On Linux with `just`, you can run `just install` instead to install `noiseman` (plus an `nsm` alias) to `~/.local/bin`, along with hicolor icons and a `.desktop` entry.
+For a shorter command, create an `nsm` symlink (`ln -sfn noiseman ~/.cargo/bin/nsm`) or shell alias (`alias nsm=noiseman`). On Linux with `just`, `just install` does this for you in `~/.local/bin` along with hicolor icons and a `.desktop` entry.
 
 ## Usage
 

@@ -4,17 +4,32 @@ use super::client::Client;
 use crate::protocol::{Command, Kind, State};
 
 pub const USAGE: &str = "\
+noiseman - background noise generator (white, pink, brown, blue, violet)
+
 usage: noiseman [COMMAND]
 
-  (none) | tui         interactive terminal controls (starts the player if needed)
-  play [KIND]          start or unmute, optionally switching noise
-  stop                 stop the player
-  mute | unmute | toggle
-  kind KIND            white | pink | brown | blue | violet
-  vol N | +N | -N      volume 0-100, absolute or relative
-  status               show the current state
-  gui                  window and tray controls (needs a build with --features gui)
-  daemon [--muted]     run the player in the foreground (--muted: start silent)";
+Commands (non-interactive; print state and exit):
+  play [KIND]          start or unmute, optionally switching noise kind
+  stop                 stop the background daemon (no-op if not running)
+  mute                 mute playback (does not start the daemon)
+  unmute               unmute playback (starts the daemon if needed)
+  toggle               toggle mute (starts playing if not running)
+  kind KIND            switch noise: white | pink | brown | blue | violet
+  vol N | +N | -N      set volume (0-100) or adjust relatively (e.g. vol +5, vol -5)
+  status               show current state (does not start the daemon)
+
+Interactive & daemon:
+  (none) | tui         interactive terminal UI (requires a TTY)
+  gui                  desktop window and tray (requires --features gui)
+  daemon [--muted]     run the player in the foreground (--muted: start silent)
+  help | -h | --help   show this help
+
+Notes:
+  - Commands that play or change settings auto-start the background daemon
+    (default: brown, 50%, playing). `status`, `mute` and `stop` never start it.
+  - Output format: `<Kind> <vol>% <playing|muted>` (or `stopped` / `not running`).
+  - Exit status: 0 on success, 1 on error (errors go to stderr, e.g. `status` when stopped).
+  - Runtime files: $XDG_RUNTIME_DIR/noiseman.{sock,lock,log} (fallback: $TMPDIR/noiseman-<uid>/).";
 
 pub fn run(args: &[String]) -> ExitCode {
     match exec(args) {
