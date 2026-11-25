@@ -103,7 +103,7 @@ a { color: var(--accent); }
 <header>
   <div class="eyebrow">Architecture · noiseman</div>
   <h1>How noiseman makes noise</h1>
-  <p class="lede">A small background daemon owns the audio. The CLI, TUI and optional GUI control it by sending text lines over a Unix socket (a named pipe on Windows). The noise itself comes from one dependency-free Rust crate that also compiles to a 6 KB WebAssembly module for the browser demo.</p>
+  <p class="lede">A small background daemon owns the audio. The CLI, TUI and optional GUI control it by sending text lines over a Unix socket. The noise itself comes from one dependency-free Rust crate that also compiles to a 6 KB WebAssembly module for the browser demo.</p>
   <div class="spectrum" aria-hidden="true"><span style="background:var(--k-white)"></span><span style="background:var(--k-pink)"></span><span style="background:var(--k-brown)"></span><span style="background:var(--k-blue)"></span><span style="background:var(--k-violet)"></span></div>
 </header>
 
@@ -112,7 +112,7 @@ a { color: var(--accent); }
   <p>noiseman has two halves and one shared core. Frontends never import backend code: everything they know about the player arrives as <code>state</code> or <code>err</code> lines on the socket. Both the daemon and the web demo generate samples from <code>noiseman-core</code>, so every noise kind sounds the same in both.</p>
   <figure>
     <div class="plate">
-      <svg viewBox="0 0 780 330" role="img" aria-label="Frontends talk to the daemon over a Unix socket (a named pipe on Windows); the daemon's audio callback and the browser worklet both use noiseman-core.">
+      <svg viewBox="0 0 780 330" role="img" aria-label="Frontends talk to the daemon over a Unix socket; the daemon's audio callback and the browser worklet both use noiseman-core.">
         <defs>
           <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="head"/></marker>
           <marker id="a1h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="headhot"/></marker>

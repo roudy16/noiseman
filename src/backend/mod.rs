@@ -1,17 +1,20 @@
-//! The player daemon: owns the audio stream and serves the protocol on its endpoint (`platform::ipc`). Knows nothing
-//! of frontends.
+//! The player daemon: owns the audio stream and serves the protocol on a Unix socket. Knows nothing of frontends.
 
 mod audio;
 mod player;
 
-use std::fs::{File, TryLockError};
+use std::fs::{self, File, TryLockError};
 use std::io::{self, BufRead, BufReader, Write};
+use std::net::Shutdown;
 use std::sync::Arc;
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::platform::ipc::{Listener, Stream};
+use crate::platform::{
+    self,
+    net::{UnixListener, UnixStream},
+};
 use crate::protocol::{self, Command, State};
 use player::Player;
 
@@ -21,7 +24,7 @@ const WRITE_TIMEOUT: Duration = Duration::from_millis(200);
 const LOCK_WAIT: Duration = Duration::from_secs(1);
 
 enum Msg {
-    Request(Command, Arc<Stream>),
+    Request(Command, Arc<UnixStream>),
     AudioLost,
 }
 
@@ -39,10 +42,15 @@ pub fn serve(muted: bool) -> Result<(), String> {
             Err(TryLockError::Error(e)) => return Err(format!("cannot lock {}: {e}", lock_path.display())),
         }
     }
-    // Holding the lock means any endpoint left over is stale.
-    let endpoint = protocol::endpoint()?;
-    let listener = Listener::bind(&endpoint).map_err(|e| format!("cannot listen on {endpoint}: {e}"))?;
-    let closer = listener.closer().map_err(|e| format!("cannot listen on {endpoint}: {e}"))?;
+    // Holding the lock means any socket file left here is stale.
+    let path = protocol::socket_path()?;
+    match fs::remove_file(&path) {
+        Ok(()) => {}
+        Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+        Err(e) => return Err(format!("cannot remove stale {}: {e}", path.display())),
+    }
+    let listener = UnixListener::bind(&path).map_err(|e| format!("cannot listen on {}: {e}", path.display()))?;
+    platform::restrict_to_owner(&path).map_err(|e| format!("cannot restrict {}: {e}", path.display()))?;
 
     let (tx, rx) = mpsc::channel();
     let accept_tx = tx.clone();
@@ -53,7 +61,7 @@ pub fn serve(muted: bool) -> Result<(), String> {
         }
     };
     let mut player = Player::new(Arc::new(on_lost), muted);
-    let mut watchers: Vec<Arc<Stream>> = Vec::new();
+    let mut watchers: Vec<Arc<UnixStream>> = Vec::new();
     let mut last = player.state();
 
     loop {
@@ -88,9 +96,8 @@ pub fn serve(muted: bool) -> Result<(), String> {
             last = state;
         }
     }
-    // New clients now find no daemon; connected ones read EOF when it exits.
-    if let Err(e) = closer.close() {
-        eprintln!("noiseman: cannot close {endpoint}: {e}");
+    if let Err(e) = fs::remove_file(&path) {
+        eprintln!("noiseman: cannot remove {}: {e}", path.display());
     }
     // Quit muted the player: let it fade instead of cutting the stream mid-buffer.
     if let Some(t) = player.deadline() {
@@ -101,20 +108,19 @@ pub fn serve(muted: bool) -> Result<(), String> {
 
 /// One write per line, so lines from different threads never interleave. A client that cannot
 /// take a reply is disconnected, so it sees EOF instead of silently missing states.
-fn send(client: &Stream, state: &State) -> io::Result<()> {
+fn send(client: &UnixStream, state: &State) -> io::Result<()> {
     let result = (&*client).write_all(format!("{state}\n").as_bytes());
     if result.is_err() {
         // Already failing; the shutdown error adds nothing.
-        let _ = client.shutdown();
+        let _ = client.shutdown(Shutdown::Both);
     }
     result
 }
 
-fn accept(listener: Listener, tx: Sender<Msg>) {
-    loop {
-        match listener.accept() {
-            Ok(None) => return,
-            Ok(Some(stream)) => {
+fn accept(listener: UnixListener, tx: Sender<Msg>) {
+    for conn in listener.incoming() {
+        match conn {
+            Ok(stream) => {
                 let tx = tx.clone();
                 thread::spawn(move || serve_client(stream, tx));
             }
@@ -127,7 +133,7 @@ fn accept(listener: Listener, tx: Sender<Msg>) {
     }
 }
 
-fn serve_client(stream: Stream, tx: Sender<Msg>) {
+fn serve_client(stream: UnixStream, tx: Sender<Msg>) {
     if let Err(e) = stream.set_write_timeout(Some(WRITE_TIMEOUT)) {
         eprintln!("noiseman: cannot set client write timeout: {e}");
         return;
@@ -136,6 +142,8 @@ fn serve_client(stream: Stream, tx: Sender<Msg>) {
     for line in BufReader::new(&*stream).lines() {
         let line = match line {
             Ok(l) => l,
+            // A client that exits with unread replies resets instead of closing.
+            Err(e) if e.kind() == io::ErrorKind::ConnectionReset => return,
             Err(e) => {
                 eprintln!("noiseman: cannot read from client: {e}");
                 return;

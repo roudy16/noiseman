@@ -1,13 +1,12 @@
 //! The contract between the backend (the player daemon) and every frontend.
 //!
-//! One request per line over the daemon's endpoint (a Unix socket, or a named pipe on Windows: see `platform::ipc`);
-//! every reply line is either `state <kind> <vol> <playing|muted>[ <error>]` or `err <message>`. After `watch`, the
-//! daemon also pushes a `state` line on every change.
+//! One request per line on a Unix socket; every reply line is either `state <kind> <vol> <playing|muted>[ <error>]`
+//! or `err <message>`. After `watch`, the daemon also pushes a `state` line on every change.
 
 use std::fmt;
 use std::path::PathBuf;
 
-use crate::platform::{self, ipc::Endpoint};
+use crate::platform;
 
 pub use noiseman_core::Kind;
 
@@ -112,15 +111,13 @@ impl fmt::Display for State {
     }
 }
 
-/// The per-user private directory for the lock file and the daemon log.
+/// The per-user private directory for the socket, the lock file and the daemon log.
 pub fn runtime_dir() -> Result<PathBuf, String> {
     platform::runtime_dir()
 }
 
-/// Where the daemon listens: one endpoint per runtime dir.
-pub fn endpoint() -> Result<Endpoint, String> {
-    let dir = runtime_dir()?;
-    Endpoint::in_dir(&dir).map_err(|e| format!("cannot name the endpoint in {}: {e}", dir.display()))
+pub fn socket_path() -> Result<PathBuf, String> {
+    Ok(runtime_dir()?.join("noiseman.sock"))
 }
 
 #[cfg(test)]

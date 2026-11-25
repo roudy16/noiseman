@@ -9,14 +9,14 @@ makes the sound, and you control it from the terminal: a TUI, or one-line comman
 for scripts and keybindings. A window with a tray icon is optional. Playing takes about 1 MB of private memory and
 under 0.1% of one core; muted, the player releases the audio device and sleeps, with no wakeups at all.
 
-The player owns the audio (cpal); the CLI and TUI talk to it over a Unix socket (a named pipe on Windows). The sound comes from a
+The player owns the audio (cpal); the CLI and TUI talk to it over a Unix socket. The sound comes from a
 dependency-free core crate (`crates/core`) that also compiles to WebAssembly for the browser demo (`web/`).
 [How it works](https://roudy16.github.io/noiseman/architecture/) has diagrams of the player, the sound core and the
 web demo (source `docs/architecture.html`); `DESIGN.md` has the full design.
 
 ## Install
 
-**Supported systems:** Linux (PulseAudio or PipeWire via `pipewire-pulse`), macOS (CoreAudio) and Windows 10 or later (WASAPI; build from source for now). The browser demo works on any OS.
+**Supported systems:** Linux (PulseAudio or PipeWire via `pipewire-pulse`), macOS (CoreAudio) and Windows 10 version 1803 or later (WASAPI; build from source for now). The browser demo works on any OS.
 
 ### Prebuilt binary
 
@@ -115,8 +115,8 @@ demo's WebAssembly is built only from `crates/core` and `web/`, with no third-pa
 ## TODO
 
 - [x] **Windows performance baseline.** `just gates-windows`
-  (`tools/winperf.ps1`) measures the daemon playing and muted, the TUI, the
-  CLI and the GUI at idle; baselines and limits are in `gates.toml`
+  (`tools/winperf.ps1`) measures the daemon playing and muted, the TUI and
+  the CLI; baselines and limits are in `gates.toml`
   `[windows]`.
 - [ ] **Pink and blue DSP speed (seen on Windows).** On the Windows baseline
   machine, `noise_profile` runs pink at 12.7 and blue at 13.6 ns/sample, about
@@ -138,9 +138,10 @@ demo's WebAssembly is built only from `crates/core` and `web/`, with no third-pa
   Linux with fractional scaling has the same gap. Fix: pick a whole scale from
   the scale factor (e.g. round 2.5 up to 3), size the window to exactly
   WIN_W x WIN_H times that in physical pixels, and redo it on
-  `WindowEvent::ScaleFactorChanged` (moving between monitors). Measure it
-  against the Windows GUI baseline (`gates.toml` `[windows]` `gui_*`); a 3x
-  framebuffer is larger than today's 2x.
+  `WindowEvent::ScaleFactorChanged` (moving between monitors). Measure the
+  GUI at idle before and after (Windows baseline at 2x, attached to a muted
+  daemon: 2.8 MB private working set, 12.5 MB working set, 3 own threads,
+  0 wakeups/s); a 3x framebuffer is larger.
 - [ ] **Rain and thunderstorm.** Two more kinds: steady rain, and rain with
   occasional thunder (a noise bed plus sparse droplet transients; thunder as
   rare low-passed rumbles). Each sets its own readable TUI theme, as the
