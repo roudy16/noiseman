@@ -123,17 +123,11 @@ demo's WebAssembly is built only from `crates/core` and `web/`, with no third-pa
 
 ## TODO
 
-- [x] **Windows performance baseline.** `just gates-windows`
-  (`tools/winperf.ps1`) measures the daemon playing and muted, the TUI and
-  the CLI; baselines and limits are in `gates.toml`
-  `[windows]`.
-- [x] **Pink and blue DSP speed.** They ran at 12-13 ns/sample on the Windows
-  baseline machine, over the 6.0 ns gate, and WSL Linux on the same CPU was as
-  slow. The cause was a false dependency: `white()`'s int-to-float conversion
-  waited on the previous sample's filter sum. `white()` now builds the float
-  from the mantissa bits, and `pink_raw` is always inlined: 3.5-3.6 ns/sample
-  on the Windows machine (Windows and WSL Linux), 2.2 (from 2.9-3.05) on the
-  Linux baseline machine.
+- [ ] **Test cargo-binstall.** `[package.metadata.binstall]` in `Cargo.toml`
+  (`.tar.gz`, with a `cfg(windows)` override for `.zip`) has not been tried
+  against a real release. Run `cargo binstall noiseman --git
+  https://github.com/roudy16/noiseman` on Linux, macOS and Windows, and check
+  it installs `noiseman` from the archive rather than building from source.
 - [ ] **GUI on fractional display scaling.** The window asks for 312x124
   logical pixels, but the bitmap font only draws at whole-number scales, so at
   a fractional OS scale the controls leave an empty band on the right and at
