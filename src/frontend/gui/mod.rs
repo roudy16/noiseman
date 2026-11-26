@@ -23,6 +23,9 @@ enum Event {
     Reply(Result<State, String>),
     PlayerGone(Option<String>),
     ToggleWindow,
+    // Only the Windows tray sends it: keyboard activation, which can arrive twice for one key press.
+    #[cfg_attr(not(windows), allow(dead_code))]
+    ShowWindow,
     ToggleMute,
     Quit,
     TrayGone,
@@ -465,7 +468,9 @@ impl ApplicationHandler<Event> for App {
     fn resumed(&mut self, el: &ActiveEventLoop) {
         self.show(el);
         // Here rather than before the loop runs: a macOS status item wants the app to have finished launching.
-        tray::spawn(self.proxy.clone(), self.tray_state());
+        if self.view.is_some() {
+            tray::spawn(self.proxy.clone(), self.tray_state());
+        }
     }
 
     fn user_event(&mut self, el: &ActiveEventLoop, event: Event) {
@@ -488,7 +493,7 @@ impl ApplicationHandler<Event> for App {
                 el.exit();
             }
             Event::ToggleWindow if self.view.is_some() => self.hide(),
-            Event::ToggleWindow => self.show(el),
+            Event::ToggleWindow | Event::ShowWindow => self.show(el),
             Event::ToggleMute => self.send(Command::ToggleMute),
             Event::Quit => self.quit(el),
             Event::TrayReady(t) => self.tray = Some(t),
@@ -566,8 +571,9 @@ impl ApplicationHandler<Event> for App {
                 event: KeyEvent { logical_key: Key::Character(c), state: ElementState::Pressed, repeat: false, .. },
                 ..
             } if cfg!(target_os = "macos") && self.mods == ModifiersState::SUPER => match c.as_str() {
-                "q" => self.quit(el),
-                "w" => self.close(el),
+                // Caps Lock still capitalizes the key under Command.
+                c if c.eq_ignore_ascii_case("q") => self.quit(el),
+                c if c.eq_ignore_ascii_case("w") => self.close(el),
                 _ => {}
             },
             WindowEvent::KeyboardInput {

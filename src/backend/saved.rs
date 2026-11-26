@@ -46,6 +46,8 @@ pub fn save((kind, vol): (Kind, i32)) -> Result<(), String> {
         .map_err(|e| format!("cannot open {}: {e}", tmp.display()))?;
     let text = format!("kind {}\nvol {vol}\n", kind.label().to_ascii_lowercase());
     file.write_all(text.as_bytes()).map_err(|e| format!("cannot write {}: {e}", tmp.display()))?;
+    // Closed before the rename, which an open handle can block on Windows (scanners, other file systems).
+    drop(file);
     fs::rename(&tmp, &path).map_err(|e| format!("cannot replace {}: {e}", path.display()))
 }
 
@@ -54,8 +56,14 @@ fn parse(text: &str) -> ((Kind, i32), bool) {
     let (mut kind, mut vol, mut bad) = (None, None, false);
     for line in text.lines() {
         match line.split_once(' ') {
-            Some(("kind", k)) if kind.is_none() => kind = Kind::parse(k),
-            Some(("vol", v)) if vol.is_none() => vol = v.parse().ok().filter(|v| (0..=100).contains(v)),
+            Some(("kind", k)) if kind.is_none() => {
+                kind = Kind::parse(k);
+                bad |= kind.is_none();
+            }
+            Some(("vol", v)) if vol.is_none() => {
+                vol = v.parse().ok().filter(|v| (0..=100).contains(v));
+                bad |= vol.is_none();
+            }
             _ => bad = true,
         }
     }
@@ -75,5 +83,6 @@ mod tests {
         assert_eq!(parse("kind pink\n"), ((Kind::Pink, 50), false));
         assert_eq!(parse("vol 7\nkind violet\nmuted\n"), ((Kind::Violet, 7), false));
         assert_eq!(parse(""), (DEFAULT, false));
+        assert_eq!(parse("kind grey\nkind pink\nvol 300\nvol 30\n"), ((Kind::Pink, 30), false));
     }
 }

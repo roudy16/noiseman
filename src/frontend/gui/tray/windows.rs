@@ -6,7 +6,7 @@ use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::HiDpi::{GetDpiForSystem, GetDpiForWindow, GetSystemMetricsForDpi};
 use windows_sys::Win32::UI::Shell::{
-    NIF_ICON, NIF_MESSAGE, NIF_SHOWTIP, NIF_TIP, NIM_ADD, NIM_DELETE, NIM_MODIFY, NIM_SETVERSION, NIN_SELECT,
+    NIF_ICON, NIF_MESSAGE, NIF_SHOWTIP, NIF_TIP, NIM_ADD, NIM_DELETE, NIM_MODIFY, NIM_SETVERSION, NIN_SELECT, NINF_KEY,
     NOTIFY_ICON_MESSAGE, NOTIFYICON_VERSION_4, NOTIFYICONDATAW, Shell_NotifyIconW,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
@@ -21,6 +21,8 @@ use winit::event_loop::EventLoopProxy;
 
 use super::{Event, TrayState, description, send_or_log};
 
+/// shellapi.h defines it as a macro, which windows-sys leaves out.
+const NIN_KEYSELECT: u32 = NIN_SELECT | NINF_KEY;
 const WM_TRAY: u32 = WM_APP + 1;
 const TOGGLE: usize = 1;
 const MUTE: usize = 2;
@@ -118,7 +120,8 @@ fn load_icon() -> HICON {
     }
 }
 
-/// Version 4 sends NIN_SELECT for a click and WM_CONTEXTMENU for a right click or the menu key, with the anchor point.
+/// Version 4 sends NIN_SELECT for a click, NIN_KEYSELECT for Enter or Space on the focused icon (Enter can send it
+/// twice, so it only shows the window) and WM_CONTEXTMENU for a right click or the menu key, with the anchor point.
 fn add(hwnd: HWND, item: &Item) -> Result<(), String> {
     let icon = load_icon();
     if icon.is_null() {
@@ -143,6 +146,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
     if msg == WM_TRAY {
         match lparam as u32 & 0xffff {
             NIN_SELECT => send_or_log(&item.proxy, Event::ToggleWindow, "forward tray event"),
+            NIN_KEYSELECT => send_or_log(&item.proxy, Event::ShowWindow, "forward tray event"),
             WM_CONTEXTMENU => {
                 let (x, y) = (wparam as i16 as i32, (wparam >> 16) as i16 as i32);
                 // The menu runs a modal loop, during which the Tray may be dropped, so it gets copies.
@@ -150,7 +154,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
             }
             _ => {}
         }
-    } else if msg == item.taskbar_created {
+    } else if item.taskbar_created != 0 && msg == item.taskbar_created {
         // Explorer restarted, or the taskbar changed DPI and still shows the icon, so remove it before adding it at the
         // new size.
         notify(NIM_DELETE, &data(hwnd));
@@ -199,7 +203,9 @@ fn menu(hwnd: HWND, proxy: EventLoopProxy<Event>, state: TrayState, x: i32, y: i
 impl Tray {
     pub fn sync(&mut self, state: TrayState) {
         let item = unsafe { &*self.item };
-        if item.state.replace(state) != state && !notify(NIM_MODIFY, &with_tip(self.hwnd, state)) {
+        let old = item.state.replace(state);
+        // Only the tooltip shows state, and it does not mention the window.
+        if (old.kind, old.muted) != (state.kind, state.muted) && !notify(NIM_MODIFY, &with_tip(self.hwnd, state)) {
             eprintln!("noiseman: cannot update the notification area icon");
         }
     }
