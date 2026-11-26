@@ -9,6 +9,17 @@ terminal, from one-line commands in your scripts and keybindings, or from a smal
 
 ## Install
 
+There are two builds; both install for your user only, with `nsm` as a short alias, and include every command.
+
+- **TUI-only:** the commands and the terminal UI. Smallest, and the Linux desktop entry or Windows Start menu shortcut
+  opens the terminal UI.
+- **GUI:** everything in TUI-only plus a small window with a tray icon (in the menu bar on macOS), which the desktop
+  entry or Start menu shortcut opens. A larger binary.
+
+Running the other installer later switches builds; both install to the same place.
+
+### TUI-only
+
 Linux and macOS:
 
 ```sh
@@ -21,13 +32,27 @@ Windows 10 (1803 or later) and 11, in PowerShell:
 irm https://github.com/roudy16/noiseman/releases/latest/download/install.ps1 | iex
 ```
 
-Both install the terminal build (commands and terminal UI) for your user only, with `nsm` as a short alias. For the
-window too, install the gui build: pipe into `NOISEMAN_GUI=1 sh` instead of `sh`, or on Windows run
-`$env:NOISEMAN_GUI = '1'` first. Linux needs PulseAudio or PipeWire and glibc 2.34 or newer (Ubuntu 22.04, Debian 12,
-Fedora 35, RHEL 9); macOS needs version 11 or newer. Archives for a manual download (`noiseman-<target>`, or
-`noiseman-gui-<target>` with the window) are on [Releases](https://github.com/roudy16/noiseman/releases); to build
-from source, see [CONTRIBUTING.md](CONTRIBUTING.md). To check that a file came from this repository's release
-workflow: `gh attestation verify <file> --repo roudy16/noiseman`.
+### GUI
+
+Linux and macOS:
+
+```sh
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh | NOISEMAN_GUI=1 sh
+```
+
+Windows 10 (1803 or later) and 11, in PowerShell:
+
+```powershell
+$env:NOISEMAN_GUI = '1'; irm https://github.com/roudy16/noiseman/releases/latest/download/install.ps1 | iex
+```
+
+### Requirements and other ways
+
+Linux needs PulseAudio or PipeWire and glibc 2.34 or newer (Ubuntu 22.04, Debian 12, Fedora 35, RHEL 9); macOS needs
+version 11 or newer. Archives for a manual download (`noiseman-<target>`, or `noiseman-gui-<target>` with the window)
+are on [Releases](https://github.com/roudy16/noiseman/releases); to build from source, see
+[CONTRIBUTING.md](CONTRIBUTING.md). To check that a file came from this repository's release workflow:
+`gh attestation verify <file> --repo roudy16/noiseman` (gh 2.49 or newer).
 
 The binaries are not signed. The installers are not affected, but a downloaded archive may be blocked: on macOS, run
 `xattr -d com.apple.quarantine noiseman`, or use System Settings > Privacy & Security > Open Anyway; on Windows, pick
