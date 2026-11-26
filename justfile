@@ -66,6 +66,10 @@ gates-windows:
 deps:
     python3 tools/deps.py
 
+# report (not a gate): lines per language and area, vendored code compiled, clippy's most complex and longest functions
+metrics *args:
+    python3 tools/metrics.py "$@"
+
 # install the terminal build and an `nsm` link to ~/.local/bin for the user; on Linux also icons and a desktop entry
 install: (_install "")
 

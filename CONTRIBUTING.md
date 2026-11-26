@@ -39,6 +39,7 @@ just gates                 # check size, DSP and runtime limits (gates.toml)
 just check                 # fmt check, lint, test and gates (run before committing)
 just ci                    # what CI runs: fmt check, lint, test and the size gates
 just deps                  # check advisories and outdated dependencies (network)
+just metrics [--json]      # report code size and complexity (not a gate)
 just web                   # build the static browser demo into target/web
 just web-serve             # serve the browser demo on http://localhost:8000
 just profile [kind] [secs] # profile the DSP into profiles/dsp-<kind>.*
