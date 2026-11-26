@@ -118,9 +118,10 @@ host is always compiled in, so building still needs the ALSA headers. The pulse 
 the default, I32 on PipeWire, so the callback is built for every common sample format.
 
 cpal and pulseaudio are vendored with small patches (latency-thread wakeups, 64 KiB socket reads, a hang on a killed
-stream, finding the server socket, following the default sink); `AGENTS.md` lists each one and its reason. Rejected:
-rodio (a mixer and decoders noiseman does not need), and cpal's `pipewire`, `jack` and `realtime` features (extra
-build dependencies, and the buffers are large enough not to need real-time scheduling).
+stream, finding the server socket, following the default sink, bounds against a hostile server); each changed file's
+header gives every change and its reason, and `grep -rn 'noiseman patch' vendor` lists them. Rejected: rodio (a mixer
+and decoders noiseman does not need), and cpal's `pipewire`, `jack` and `realtime` features (extra build dependencies,
+and the buffers are large enough not to need real-time scheduling).
 
 ## The window
 

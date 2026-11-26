@@ -1,7 +1,9 @@
 // Modified by noiseman (2026-11-25) from pulseaudio 0.3.2, under the MIT License (see ../LICENSE.md).
-// Change: socket_path_from_env tries each location in turn (upstream returned None at the first missing one),
-// looks for $PULSE_RUNTIME_PATH/native (not .../pulse/native), and makes $PULSE_SERVER the only server when set,
-// as libpulse does (upstream issue #24).
+// Change, marked "noiseman patch": socket_path_from_env finds the server where libpulse does (upstream issue #24), so
+// noiseman connects wherever other PulseAudio clients do: $PULSE_SERVER alone when set, else the first of
+// $PULSE_RUNTIME_PATH/native and $XDG_RUNTIME_DIR/pulse/native that exists. Upstream returned None at the first
+// missing location and looked for $PULSE_RUNTIME_PATH/pulse/native. The search moved to socket_path_from so
+// socket_path_test can drive it without touching the environment.
 
 //! A pure Rust implementation of the PulseAudio protocol, suitable for writing
 //! servers and clients.
@@ -28,6 +30,7 @@ mod client;
 pub mod protocol;
 pub use client::*;
 
+// noiseman patch: doc comment and body rewritten to search as libpulse does, in socket_path_from.
 /// Attempts to determine the socket path from the runtime environment, as
 /// libpulse does. If $PULSE_SERVER is set, it is the only server: a 'unix:'
 /// path (or a bare absolute path) is used if it exists. Otherwise the first
@@ -89,6 +92,7 @@ pub fn cookie_path_from_env() -> Option<PathBuf> {
     paths.find(|path| path.exists())
 }
 
+// noiseman patch: tests socket_path_from.
 #[cfg(test)]
 mod socket_path_test {
     use super::socket_path_from as find;

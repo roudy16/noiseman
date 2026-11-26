@@ -36,7 +36,7 @@ gate.
 ## Licenses
 
 noiseman is MIT (`LICENSE`), except `vendor/`, which holds two third-party crates under their own licenses, each with
-small changes (described at the top of each changed file and in `AGENTS.md`):
+small changes (described at the top of each changed file):
 
 - `vendor/cpal`: cpal 0.18.2, Apache License 2.0 (`vendor/cpal/LICENSE`)
 - `vendor/pulseaudio`: pulseaudio 0.3.2 by Colin Marc, MIT (`vendor/pulseaudio/LICENSE.md`)

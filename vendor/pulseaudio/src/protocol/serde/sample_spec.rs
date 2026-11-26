@@ -1,3 +1,8 @@
+// Modified by noiseman (2026-11-25) from pulseaudio 0.3.2, under the MIT License (see ../../../LICENSE.md).
+// Change, marked "noiseman patch": SampleSpec::read rejects 0 channels or more than MAX_CHANNELS as a protocol
+// error. Frame sizes divide by the channel count, so a hostile server's 0 panicked (and noiseman's panic = "abort"
+// killed the daemon).
+
 //! Sample specification data type.
 
 use enum_primitive_derive::Primitive;
@@ -132,6 +137,12 @@ impl TagStructRead for SampleSpec {
         let format = SampleFormat::from_u8(format)
             .ok_or_else(|| ProtocolError::Invalid(format!("invalid sample format {format}")))?;
         let channels = ts.inner.read_u8()?;
+        // noiseman patch: frame sizes divide by the channel count.
+        if channels == 0 || channels > MAX_CHANNELS {
+            return Err(ProtocolError::Invalid(format!(
+                "invalid sample spec channel count {channels}"
+            )));
+        }
         let sample_rate = ts.inner.read_u32::<NetworkEndian>()?;
 
         Ok(Self {

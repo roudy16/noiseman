@@ -71,11 +71,10 @@ inherits = "release"
 debug = true
 strip = false
 
-# pulseaudio 0.3.2, vendored with three fixes: Reactor::recv reads 64 KiB chunks instead of zero-filling 1 MiB per read,
-# handle_command removes a server-killed playback stream (PlaybackStreamKilled) so dropping it cannot hang, and
-# socket_path_from_env finds the server socket where libpulse does (issue #24).
-# Drop this once upstream (colinmarc/pulseaudio-rs) fixes all three.
+# Vendored with small patches, each marked "noiseman patch" in the source (`grep -rn 'noiseman patch' vendor`).
+# Drop a crate's entry once upstream (colinmarc/pulseaudio-rs, RustAudio/cpal) makes its patches unnecessary.
 [patch.crates-io]
+# pulseaudio 0.3.2
 pulseaudio = { path = "vendor/pulseaudio" }
-# cpal 0.18.2 with the PulseAudio playback latency thread polling only on play/pause/drop.
+# cpal 0.18.2
 cpal = { path = "vendor/cpal" }

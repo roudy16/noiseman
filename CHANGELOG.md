@@ -20,6 +20,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Web demo: with a noise button focused, the arrow keys move between noises (Left/Up previous, Right/Down next) as a
   radio group should, instead of changing the volume.
 
+### Security
+
+- A broken or hostile PulseAudio server can no longer crash the player or make it allocate gigabytes: a stream format
+  with no channels or an invalid sample format is an audio error, and large data requests are written in chunks of
+  at most 4 MiB.
+
 ## [0.1.2] - 2026-11-25
 
 ### Changed

@@ -1,6 +1,11 @@
-// Modified by noiseman (2026-11-24) from pulseaudio 0.3.2, under the MIT License (see ../../LICENSE.md).
-// Changes, each marked "noiseman patch": Reactor::recv reads in 64 KiB chunks instead of zero-filling 1 MiB per
-// read, and handle_command removes a playback stream on PlaybackStreamKilled.
+// Modified by noiseman (2026-11-25) from pulseaudio 0.3.2, under the MIT License (see ../../LICENSE.md).
+// Changes, each marked "noiseman patch":
+// - Reactor::recv reads in 64 KiB chunks instead of zero-filling 1 MiB per read, which was ~56% of noiseman's CPU.
+// - handle_command removes a playback stream on PlaybackStreamKilled, so cpal reports StreamInvalidated and noiseman
+//   restarts it. Upstream ignored it: once cpal's latency polling was cut (see its host/pulseaudio/stream.rs), nothing
+//   noticed a server-killed stream, and dropping one hung waiting for a delete ack that never came.
+// - write_streams writes at most MAX_MEMBLOCKQ_LENGTH (4 MiB, the most a PulseAudio server can request) per
+//   message, so a hostile server requesting up to 4 GiB cannot make it allocate that much.
 
 use std::{
     collections::BTreeMap,
@@ -345,7 +350,8 @@ impl Reactor {
 
         'read: loop {
             let off = self.read_buf.len();
-            // noiseman patch: was 1 MiB, zero-filled on every read (~56% of app CPU); reads loop until WouldBlock so a smaller chunk loses nothing.
+            // noiseman patch: was 1 MiB, zero-filled on every read (~56% of app CPU); reads loop until WouldBlock
+            // so a smaller chunk loses nothing.
             self.read_buf.resize(off + 64 * 1024, 0);
 
             match self.socket.read(&mut self.read_buf[off..]) {
@@ -491,7 +497,8 @@ impl Reactor {
             }
 
             while stream.requested_bytes > 0 {
-                let requested = stream.requested_bytes;
+                // noiseman patch: bounded, so a hostile server cannot make it allocate gigabytes.
+                let requested = stream.requested_bytes.min(protocol::MAX_MEMBLOCKQ_LENGTH);
 
                 self.write_buf
                     .resize(protocol::DESCRIPTOR_SIZE + requested, 0);

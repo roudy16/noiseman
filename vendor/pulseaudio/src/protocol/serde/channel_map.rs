@@ -1,3 +1,8 @@
+// Modified by noiseman (2026-11-25) from pulseaudio 0.3.2, under the MIT License (see ../../../LICENSE.md).
+// Change, marked "noiseman patch": ChannelMap::read rejects a map with 0 channels as a protocol error. Frame sizes
+// divide by its channel count (cpal's default output config), so a hostile server's 0 panicked (and noiseman's
+// panic = "abort" killed the daemon).
+
 //! Defines mappings from stream channels to speaker positions.
 
 use std::fmt;
@@ -198,6 +203,10 @@ impl TagStructRead for ChannelMap {
         ts.expect_tag(Tag::ChannelMap)?;
 
         let channels = ts.inner.read_u8()?;
+        // noiseman patch: also reject 0, since frame sizes divide by the channel count.
+        if channels == 0 {
+            return Err(ProtocolError::Invalid("channel map has no channels".into()));
+        }
         if channels > MAX_CHANNELS {
             return Err(ProtocolError::Invalid(format!(
                 "channel map too large (max is {MAX_CHANNELS} channels, got {channels})"
