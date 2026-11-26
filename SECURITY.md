@@ -22,5 +22,19 @@ Only the latest release gets fixes. The installers always fetch it.
   ACL admits only the user, SYSTEM and administrators; `$XDG_RUNTIME_DIR`, which only the tests and gates set there, is
   taken as given.
 - Anything running as the same user can control the player and read its log; that is by design, not a vulnerability.
-- The installers download over HTTPS from GitHub Releases and check each archive against its published SHA-256 before
-  installing. They trust GitHub and the HTTPS connection; the binaries are not code-signed.
+- The installers download from GitHub Releases over HTTPS and check each archive against its published SHA-256 before
+  installing. `install.sh` with curl refuses any other protocol or a TLS version below 1.2, redirects included, unless
+  `NOISEMAN_BASE_URL` names another source. They trust GitHub and the HTTPS connection; the binaries are not
+  code-signed.
+
+## Verifying a release
+
+Releases are immutable, and from the release after 0.1.2 every file in one (archives, `.sha256` files, `install.sh`,
+`install.ps1`) has a build provenance attestation signed by the release workflow. To check a downloaded file with the
+GitHub CLI:
+
+```sh
+gh attestation verify noiseman-x86_64-unknown-linux-gnu.tar.gz --repo roudy16/noiseman
+```
+
+It fails unless the file is byte for byte what `.github/workflows/release.yml` built from this repository.

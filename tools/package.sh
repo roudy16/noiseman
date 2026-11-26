@@ -43,7 +43,7 @@ if [[ $target == *linux* ]]; then
     if [[ $variant == gui ]]; then
         install -m644 assets/noiseman.desktop "$dist/$name/share/noiseman.desktop"
     else
-        sed -e 's/^Exec=@BIN@ gui$/Exec=@BIN@/' -e 's/^Terminal=false$/Terminal=true/' assets/noiseman.desktop \
+        sed -e 's/^Exec="@BIN@" gui$/Exec="@BIN@"/' -e 's/^Terminal=false$/Terminal=true/' assets/noiseman.desktop \
             >"$dist/$name/share/noiseman.desktop"
     fi
 fi

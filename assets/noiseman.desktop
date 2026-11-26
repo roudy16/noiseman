@@ -2,7 +2,7 @@
 Type=Application
 Name=noiseman
 Comment=Noise generator (brown, white, blue, pink, violet)
-Exec=@BIN@ gui
+Exec="@BIN@" gui
 Icon=noiseman
 Terminal=false
 Categories=AudioVideo;Audio;

@@ -9,22 +9,32 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 - Issue forms for bug reports and feature requests, and a README note on support and scope; questions go to
   GitHub Discussions.
+- Each release file (archives, checksums and both installers) has a signed build provenance attestation; check a
+  download with `gh attestation verify <file> --repo roudy16/noiseman` (see SECURITY.md).
 
 ### Changed
 
 - When another `nsm` is installed and the installers skip theirs, the warning now says how to alias `nsm` to
   noiseman in your shell anyway.
+- The suggested install command is `curl --proto '=https' --tlsv1.2 -fsSL ... | sh`.
 
 ### Fixed
 
 - Web demo: with a noise button focused, the arrow keys move between noises (Left/Up previous, Right/Down next) as a
   radio group should, instead of changing the volume.
+- A relative `NOISEMAN_INSTALL_DIR` is made absolute by both installers, so the PATH entry, desktop entry, Start menu
+  shortcut and Windows uninstall entry work from any directory.
+- The Linux desktop entry works when the install path contains spaces or characters such as `&`, `"`, `$` or `\`.
+- The web demo no longer reads past its sample buffer when the browser asks for more than 1024 frames at once.
 
 ### Security
 
+- `install.sh` checks the downloaded archive's own SHA-256 against the published checksum, instead of whatever file
+  the `.sha256` line names, and downloads only over HTTPS with TLS 1.2 or later (unless `NOISEMAN_BASE_URL` is set).
 - A broken or hostile PulseAudio server can no longer crash the player or make it allocate gigabytes: a stream format
   with no channels or an invalid sample format is an audio error, and large data requests are written in chunks of
   at most 4 MiB.
+- The web demo and the How it works page set a Content Security Policy, and GitHub Actions are pinned to commits.
 
 ## [0.1.2] - 2026-11-25
 

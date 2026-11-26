@@ -30,8 +30,8 @@ pub extern "C" fn synth_init(sample_rate: u32, seed: u32, kind: u32) {
     *get(&VOICE) = Some(voice);
 }
 
-/// Renders `frames` (at most MAX_FRAMES) samples of `kind` at volume `vol` (0-100) and returns where they start;
-/// silence before `synth_init`.
+/// Renders `frames` samples, but never more than MAX_FRAMES (the caller chunks a larger block), of `kind` at volume
+/// `vol` (0-100) and returns where they start; silence before `synth_init`.
 #[unsafe(no_mangle)]
 pub extern "C" fn synth_render(kind: u32, vol: u32, frames: u32) -> *const f32 {
     let buf = get(&BUF);
@@ -55,5 +55,12 @@ mod tests {
             (0..Kind::ALL.len() as u8).map(|i| format!("\"{}\"", Kind::from_u8(i).label())).collect();
         let line = format!("const KINDS = [{}];", labels.join(", "));
         assert!(include_str!("../site/app.js").contains(&line), "web/site/app.js lacks {line}");
+    }
+
+    /// worklet.js chunks by MAX_FRAMES; a larger value there would read past BUF.
+    #[test]
+    fn worklet_js_chunks_by_max_frames() {
+        let line = format!("const MAX_FRAMES = {};", super::MAX_FRAMES);
+        assert!(include_str!("../site/worklet.js").contains(&line), "web/site/worklet.js lacks {line}");
     }
 }

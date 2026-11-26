@@ -13,6 +13,9 @@ function Install-Noiseman {
     $ProgressPreference = 'SilentlyContinue'  # the progress bar slows downloads severalfold in Windows PowerShell
     $repo = 'https://github.com/roudy16/noiseman'
     $dir = if ($env:NOISEMAN_INSTALL_DIR) { $env:NOISEMAN_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA 'Programs\noiseman' }
+    # Absolute, from PowerShell's current location (not .NET's, which GetFullPath uses), and it need not exist yet: the
+    # PATH entry, shortcut and UninstallString must not depend on where the installer ran.
+    $dir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($dir)
 
     # AF_UNIX sockets, which the daemon listens on, arrived in Windows 10 1803 (build 17134).
     if ([Environment]::OSVersion.Version.Build -lt 17134) { throw 'noiseman needs Windows 10 version 1803 or later' }

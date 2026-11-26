@@ -12,7 +12,7 @@ terminal, from one-line commands in your scripts and keybindings, or from a smal
 Linux and macOS:
 
 ```sh
-curl -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh | sh
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh | sh
 ```
 
 Windows 10 (1803 or later) and 11, in PowerShell:
@@ -26,7 +26,8 @@ window too, install the gui build: pipe into `NOISEMAN_GUI=1 sh` instead of `sh`
 `$env:NOISEMAN_GUI = '1'` first. Linux needs PulseAudio or PipeWire and glibc 2.34 or newer (Ubuntu 22.04, Debian 12,
 Fedora 35, RHEL 9); macOS needs version 11 or newer. Archives for a manual download (`noiseman-<target>`, or
 `noiseman-gui-<target>` with the window) are on [Releases](https://github.com/roudy16/noiseman/releases); to build
-from source, see [CONTRIBUTING.md](CONTRIBUTING.md).
+from source, see [CONTRIBUTING.md](CONTRIBUTING.md). To check that a file came from this repository's release
+workflow: `gh attestation verify <file> --repo roudy16/noiseman`.
 
 The binaries are not signed. The installers are not affected, but a downloaded archive may be blocked: on macOS, run
 `xattr -d com.apple.quarantine noiseman`, or use System Settings > Privacy & Security > Open Anyway; on Windows, pick

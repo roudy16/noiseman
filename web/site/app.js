@@ -33,7 +33,10 @@ const buttons = KINDS.map((label, i) => {
   const b = document.createElement("button");
   b.type = "button";
   b.setAttribute("role", "radio");
-  b.innerHTML = `<span aria-hidden="true">${i + 1}</span>${label}`;
+  const key = document.createElement("span");
+  key.setAttribute("aria-hidden", "true");
+  key.textContent = i + 1;
+  b.append(key, label);
   b.addEventListener("click", () => setKind(i));
   $("kinds").append(b);
   return b;

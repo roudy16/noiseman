@@ -1,8 +1,9 @@
 #!/bin/sh
 # Install the latest noiseman release for this machine, with an `nsm` link:
-#   curl -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh | sh
+#   curl --proto '=https' --tlsv1.2 -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh | sh
 # It installs the terminal build (CLI + TUI); NOISEMAN_GUI=1 installs the build with the desktop window instead:
-#   curl -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh | NOISEMAN_GUI=1 sh
+#   curl --proto '=https' --tlsv1.2 -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh |
+#     NOISEMAN_GUI=1 sh
 # NOISEMAN_INSTALL_DIR overrides the directory (default ~/.local/bin); NOISEMAN_VERSION (e.g. v0.1.0) picks a release;
 # NOISEMAN_BASE_URL replaces the download base (the release CI installs file://$PWD/target/dist; file:// needs curl).
 # On Linux it also installs icons and a desktop entry to ~/.local/share, as `just install` does.
@@ -16,24 +17,38 @@ die() {
     exit 1
 }
 
+# With curl, HTTPS (TLS 1.2 or later) only, redirects included, unless NOISEMAN_BASE_URL names another base: that is the
+# user's choice (the release CI uses file://). GNU wget's --https-only binds only recursive downloads.
 fetch() {
+    url=$1 out=$2
+    set --
     if command -v curl >/dev/null 2>&1; then
-        curl -fsSL -o "$2" "$1"
+        [ -n "${NOISEMAN_BASE_URL:-}" ] || set -- --proto '=https' --tlsv1.2
+        curl -fsSL "$@" -o "$out" "$url"
     elif command -v wget >/dev/null 2>&1; then
-        wget -q -O "$2" "$1"
+        # BusyBox wget lacks --https-only.
+        if [ -z "${NOISEMAN_BASE_URL:-}" ] && wget --help 2>&1 | grep -q -e --https-only; then
+            set -- --https-only
+        fi
+        wget -q "$@" -O "$out" "$url"
     else
         die "needs curl or wget"
-    fi || die "cannot download $1"
+    fi || die "cannot download $url"
 }
 
+# Hashes the file itself and compares the .sha256's first field: `sha256sum -c` checks whatever file the .sha256 names.
 verify() {
+    read -r want _ <"$1.sha256" || true
     if command -v sha256sum >/dev/null 2>&1; then
-        sha256sum -c "$1" >/dev/null
+        got=$(sha256sum <"$1")
     elif command -v shasum >/dev/null 2>&1; then
-        shasum -a 256 -c "$1" >/dev/null
+        got=$(shasum -a 256 <"$1")
     else
         die "needs sha256sum or shasum to verify the download"
-    fi || die "checksum mismatch, not installing"
+    fi
+    if [ -z "$want" ] || [ "${got%% *}" != "$want" ]; then
+        die "checksum mismatch, not installing"
+    fi
 }
 
 # Refuse, before downloading, the systems the prebuilt binaries cannot run on, saying why. What only shows when the
@@ -110,7 +125,10 @@ desktop_files() {
         cp "$icon" "$share/icons/hicolor/$size/apps/"
     done
     mkdir -p "$share/applications"
-    sed "s|@BIN@|$bin|g" "$src/noiseman.desktop" >"$share/applications/noiseman.desktop"
+    # Exec= quotes @BIN@: the Desktop Entry spec escapes " ` $ \ inside the quotes with \, then every \ again as the
+    # file's own escape, and % as %%. The last expression escapes the result for sed's replacement.
+    bin_esc=$(printf '%s\n' "$bin" | sed -e 's/[\"`$]/\\&/g' -e 's/\\/\\\\/g' -e 's/%/%%/g' -e 's/[\&|]/\\&/g')
+    sed "s|@BIN@|$bin_esc|g" "$src/noiseman.desktop" >"$share/applications/noiseman.desktop"
     update-desktop-database "$share/applications" 2>/dev/null || true
     echo "Installed icons and a desktop entry to $share"
 }
@@ -135,6 +153,11 @@ path_hint() {
 
 main() {
     dir=${NOISEMAN_INSTALL_DIR:-$HOME/.local/bin}
+    # Absolute, as the PATH hint and the desktop entry need.
+    case $dir in
+        /*) ;;
+        *) dir=$PWD/$dir ;;
+    esac
     os=$(uname -s)
     case "$os-$(uname -m)" in
         Linux-x86_64) target=x86_64-unknown-linux-gnu ;;
@@ -165,7 +188,7 @@ main() {
     echo "Downloading $base/$name.tar.gz"
     fetch "$base/$name.tar.gz" "$tmp/$name.tar.gz"
     fetch "$base/$name.tar.gz.sha256" "$tmp/$name.tar.gz.sha256"
-    (cd "$tmp" && verify "$name.tar.gz.sha256")
+    verify "$tmp/$name.tar.gz"
     tar -xzf "$tmp/$name.tar.gz" -C "$tmp"
     err=$("$tmp/$name/noiseman" help 2>&1 >/dev/null) || explain_failure "$err"
     # A running player keeps running the replaced binary; stop it (`status` never starts one) so this version takes over.

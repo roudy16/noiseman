@@ -24,7 +24,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libasound2-dev just
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # Third-party actions pinned to a commit; bump the SHA (and comment) to update.
       - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
@@ -40,7 +42,9 @@ jobs:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # Third-party actions pinned to a commit; bump the SHA (and comment) to update.
       - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:

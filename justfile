@@ -105,9 +105,11 @@ _install variant:
     done
     install -d "$share/applications"
     # As in tools/package.sh: the template opens the window; the terminal build's entry runs the TUI in a terminal.
-    tui='s/^Exec=@BIN@ gui$/Exec=@BIN@/; s/^Terminal=false$/Terminal=true/'
+    tui='s/^Exec="@BIN@" gui$/Exec="@BIN@"/; s/^Terminal=false$/Terminal=true/'
     [[ -n $variant ]] && tui=
-    sed -e "$tui" -e "s|@BIN@|$bin/noiseman|g" assets/noiseman.desktop > "$share/applications/noiseman.desktop"
+    # Escaped for the quoted Exec= argument, the desktop file and sed's replacement, as in tools/install.sh.
+    bin_esc=$(printf '%s\n' "$bin/noiseman" | sed -e 's/[\"`$]/\\&/g' -e 's/\\/\\\\/g' -e 's/%/%%/g' -e 's/[\&|]/\\&/g')
+    sed -e "$tui" -e "s|@BIN@|$bin_esc|g" assets/noiseman.desktop > "$share/applications/noiseman.desktop"
     update-desktop-database "$share/applications" 2>/dev/null || true
 
 # build a release archive into target/dist: the terminal build, or with variant `gui` the window's; target: this machine
@@ -127,9 +129,9 @@ web:
     mkdir -p target/web/preview
     cp assets/noiseman-web.png target/web/preview/noiseman.png
 
-# serve the web demo on http://localhost:8000
+# serve the web demo on http://127.0.0.1:8000 (this machine only)
 web-serve: web
-    python3 -m http.server -d target/web 8000
+    python3 -m http.server -b 127.0.0.1 -d target/web 8000
 
 # remove build artifacts
 clean:
