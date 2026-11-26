@@ -160,8 +160,14 @@ $Uninstall = @'
 $dir = $PSScriptRoot
 $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\noiseman'
 & "$dir\noiseman.exe" stop | Out-Null
-# The daemon fades out after replying, and an open window or TUI keeps its binary locked: wait, then end them.
-foreach ($p in @(Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith("$dir\", 'OrdinalIgnoreCase') })) {
+# The daemon fades out after replying, and an open window or TUI keeps its binary locked: wait, then end them. Only
+# our own binaries (by name: a renamed-aside one may report either name), as the directory may be shared.
+foreach ($p in @(Get-Process | Where-Object {
+    $path = $_.Path
+    $n = if ($path -and $path.StartsWith("$dir\", 'OrdinalIgnoreCase')) { $path.Substring($dir.Length + 1) }
+    'noiseman.exe', 'noiseman-gui.exe' -contains $n -or $n -match '@OLD@' -or
+        ($n -eq 'nsm.exe' -and $_.Product -eq 'noiseman')
+})) {
     if (-not $p.WaitForExit(3000)) { $p.Kill(); [void]$p.WaitForExit(2000) }
 }
 $ours = 'noiseman.exe', 'noiseman-gui.exe', 'LICENSE', 'THIRD-PARTY-LICENSES.txt', 'uninstall.ps1'

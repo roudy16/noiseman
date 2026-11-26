@@ -31,6 +31,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   and the player's log says why. The lock file and log are created 0600 and opened without following symlinks, and
   the lock file is no longer truncated, so a symlink planted in a shared runtime directory can no longer empty another
   file.
+- The Windows uninstaller waits for and ends only noiseman's own processes (`noiseman.exe`, `noiseman-gui.exe`, its own
+  `nsm.exe` and renamed-aside copies), instead of every program running from the install directory, which may be
+  shared through `NOISEMAN_INSTALL_DIR`.
 
 ## [0.1.1] - 2026-11-25
 
