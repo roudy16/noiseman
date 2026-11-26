@@ -1,10 +1,10 @@
 # Contributing
 
 `AGENTS.md` describes the layout, invariants and release process; `DESIGN.md` explains the design decisions. Report bugs
-and propose changes as [GitHub issues](https://github.com/roudy16/noiseman/issues); report vulnerabilities privately, as
-`SECURITY.md` describes. Run `just check` before committing. CI runs `just ci` (fmt check, lint, tests, the web build
-and the size gates; the timing and runtime gates are for local runs) on Linux, and clippy and tests on macOS and
-Windows.
+and propose changes as [GitHub issues](https://github.com/roudy16/noiseman/issues/new/choose), ask questions in
+[Discussions](https://github.com/roudy16/noiseman/discussions), and report vulnerabilities privately, as `SECURITY.md`
+describes. Run `just check` before committing. CI runs `just ci` (fmt check, lint, tests, the web build and the size
+gates; the timing and runtime gates are for local runs) on Linux, and clippy and tests on macOS and Windows.
 
 ## Build from source
 

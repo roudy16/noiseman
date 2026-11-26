@@ -76,6 +76,12 @@ rm ~/.local/bin/noiseman
 rm ~/.local/share/applications/noiseman.desktop ~/.local/share/icons/hicolor/*/apps/noiseman.*
 ```
 
+## Status
+
+noiseman aims to stay small: one job, few features, little memory and CPU. One maintainer; only the latest release is
+supported. In scope: colored noise, played in the background and controlled from the terminal, scripts or a window.
+Out of scope: other sounds (rain, music), timers, presets, EQ, device settings.
+
 ## License
 
 MIT, except the vendored crates in `vendor/`, which keep their own licenses (see [CONTRIBUTING.md](CONTRIBUTING.md)).

@@ -5,6 +5,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Issue forms for bug reports and feature requests, and a README note on support and scope; questions go to
+  GitHub Discussions.
+
 ### Changed
 
 - When another `nsm` is installed and the installers skip theirs, the warning now says how to alias `nsm` to

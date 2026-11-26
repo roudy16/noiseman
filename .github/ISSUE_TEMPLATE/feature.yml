@@ -1,0 +1,22 @@
+name: Feature request
+description: Something noiseman does not do yet.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        noiseman aims to stay a small background player for colored noise, controlled from the terminal, scripts or a
+        small window. Other sounds such as rain or music, sleep timers, presets, EQ and device or latency settings are
+        out of scope; [DESIGN.md](https://github.com/roudy16/noiseman/blob/main/DESIGN.md#deliberately-not-done) lists
+        what is deliberately not done.
+  - type: textarea
+    id: what
+    attributes:
+      label: What you want to do
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What you do today instead, and what that costs you.

@@ -1,0 +1,61 @@
+name: Bug report
+description: Something in noiseman does not work as it should.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The output of `noiseman --version`.
+      placeholder: noiseman 0.1.2
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS and version
+      placeholder: Ubuntu 24.04, macOS 15.1, Windows 11 24H2
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How it was installed
+      options:
+        - install.sh
+        - install.ps1
+        - Release archive
+        - From source
+    validations:
+      required: true
+  - type: dropdown
+    id: build
+    attributes:
+      label: Build
+      options:
+        - terminal
+        - gui
+    validations:
+      required: true
+  - type: input
+    id: audio-server
+    attributes:
+      label: Audio server (Linux)
+      description: The "Server Name" line of `pactl info`.
+      placeholder: "Server Name: PulseAudio (on PipeWire 1.0.5)"
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what you expected
+      description: The commands or keys you used, what you saw or heard, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: >-
+        The relevant lines of `noiseman.log`. The player writes it in `$XDG_RUNTIME_DIR` when that is private (0700),
+        else in `noiseman-<uid>/` under `$TMPDIR` (or `/tmp`), or on Windows in `%LOCALAPPDATA%\noiseman`. Each run
+        starts with its version, and every line has a UTC time.
+      render: text
