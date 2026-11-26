@@ -10,6 +10,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 - When another `nsm` is installed and the installers skip theirs, the warning now says how to alias `nsm` to
   noiseman in your shell anyway.
 
+### Fixed
+
+- Web demo: with a noise button focused, the arrow keys move between noises (Left/Up previous, Right/Down next) as a
+  radio group should, instead of changing the volume.
+
 ## [0.1.2] - 2026-11-25
 
 ### Changed

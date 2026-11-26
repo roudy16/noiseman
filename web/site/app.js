@@ -134,7 +134,10 @@ addEventListener("keydown", (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const inRange = e.target === $("vol");
   const onPlay = e.target === $("play");
+  const radio = buttons.indexOf(e.target);
   if (e.key >= "1" && e.key <= "5") setKind(+e.key - 1);
+  else if (radio >= 0 && (e.key === "ArrowLeft" || e.key === "ArrowUp")) setKind(radio - 1);
+  else if (radio >= 0 && (e.key === "ArrowRight" || e.key === "ArrowDown")) setKind(radio + 1);
   else if (e.key === "k" || (e.key === "ArrowUp" && !inRange)) setKind(state.kind + 1);
   else if (e.key === "j" || (e.key === "ArrowDown" && !inRange)) setKind(state.kind - 1);
   else if ("h-".includes(e.key) || (e.key === "ArrowLeft" && !inRange)) setVol(state.vol - 5);
