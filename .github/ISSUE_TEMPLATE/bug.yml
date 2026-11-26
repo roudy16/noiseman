@@ -7,7 +7,7 @@ body:
     attributes:
       label: Version
       description: The output of `noiseman --version`.
-      placeholder: noiseman 0.1.2
+      placeholder: noiseman 0.1.3
     validations:
       required: true
   - type: input

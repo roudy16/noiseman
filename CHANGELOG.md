@@ -3,23 +3,23 @@
 All notable changes to noiseman. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.1.3] - 2026-11-26
 
 ### Added
 
-- Issue forms for bug reports and feature requests, and a README note on support and scope; questions go to
-  GitHub Discussions.
-- Each release file (archives, checksums and both installers) has a signed build provenance attestation; check a
-  download with `gh attestation verify <file> --repo roudy16/noiseman` (see SECURITY.md).
-- The player remembers the last noise and volume across `noiseman stop`, logout and reboot, in
-  `$XDG_STATE_HOME/noiseman/state` (default `~/.local/state/noiseman/state`; macOS
-  `~/Library/Application Support/noiseman/state`; Windows `%LOCALAPPDATA%\noiseman\state`); `noiseman --help` says
-  where. Mute is not saved: a started player plays.
 - Windows: the gui build has a notification-area icon. Left-click shows or hides the window; right-click opens Show/Hide
   window, Mute and Quit. Closing the window (or `q`, Esc) hides it to the icon and keeps the noise playing, as on Linux.
 - macOS: the gui build has a menu bar icon with Show/Hide window, Mute and Quit. Closing the window (close button, `q`,
   Esc or Cmd-W) hides it to the menu bar and keeps the noise playing; Cmd-Q quits and stops the noise. There is no Dock
   icon.
+- The player remembers the last noise and volume across `noiseman stop`, logout and reboot, in
+  `$XDG_STATE_HOME/noiseman/state` (default `~/.local/state/noiseman/state`; macOS
+  `~/Library/Application Support/noiseman/state`; Windows `%LOCALAPPDATA%\noiseman\state`); `noiseman --help` says
+  where. Mute is not saved: a started player plays.
+- Each release file (archives, checksums and both installers) has a signed build provenance attestation; check a
+  download with `gh attestation verify <file> --repo roudy16/noiseman` (see SECURITY.md).
+- Issue forms for bug reports and feature requests, and a README note on support and scope; questions go to
+  GitHub Discussions.
 
 ### Changed
 
@@ -154,7 +154,7 @@ First release.
   and an entry in Settings > Apps). Prebuilt archives, with SHA-256 checksums, also work with `cargo binstall`.
 - A [browser demo](https://roudy16.github.io/noiseman/) that plays the same sound, with nothing to install.
 
-[Unreleased]: https://github.com/roudy16/noiseman/compare/v0.1.2...HEAD
+[0.1.3]: https://github.com/roudy16/noiseman/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/roudy16/noiseman/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/roudy16/noiseman/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/roudy16/noiseman/releases/tag/v0.1.0
