@@ -26,6 +26,7 @@ jobs:
       # Third-party action pinned to a commit; bump the SHA (and comment) to update.
       - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
+          toolchain: 1.100.0 # fixed for CI and releases; bump in every workflow together (AGENTS.md)
           targets: wasm32-unknown-unknown
       - run: just web
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

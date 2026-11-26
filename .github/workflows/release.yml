@@ -41,6 +41,7 @@ jobs:
       # Third-party action pinned to a commit; bump the SHA (and comment) to update.
       - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
+          toolchain: 1.100.0 # fixed for CI and releases; bump in every workflow together (AGENTS.md)
           targets: ${{ matrix.target }}
       - name: Check the tag matches Cargo.toml
         shell: bash
