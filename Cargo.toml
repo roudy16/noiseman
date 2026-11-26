@@ -15,6 +15,8 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+# crates.io would build it without the vendored cpal and pulseaudio fixes ([patch] does not apply to dependents).
+publish = false
 
 # Prebuilt archives from the Release workflow (`cargo binstall --git https://github.com/roudy16/noiseman noiseman`).
 [package.metadata.binstall]
