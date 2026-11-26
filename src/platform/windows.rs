@@ -58,9 +58,9 @@ pub fn runtime_dir() -> Result<PathBuf, String> {
     Ok(dir)
 }
 
-/// Never: `runtime_dir` takes `$XDG_RUNTIME_DIR` as given.
-pub fn runtime_dir_rejected() -> Option<String> {
-    None
+/// None: `runtime_dir` takes `$XDG_RUNTIME_DIR` as given.
+pub fn runtime_dir_rejected() -> Vec<String> {
+    Vec::new()
 }
 
 /// A plain open: the file inherits the runtime dir's ACL.

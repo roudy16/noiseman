@@ -19,37 +19,93 @@ fn check_private(dir: &Path, uid: u32) -> Result<(), String> {
     }
     let meta = fs::symlink_metadata(dir).map_err(|e| format!("cannot stat {}: {e}", dir.display()))?;
     if !meta.is_dir() || meta.uid() != uid || meta.mode() & 0o077 != 0 {
-        return Err(format!("{} is not a private directory owned by uid {uid}", dir.display()));
+        return Err(format!(
+            "{} (owner uid {}, mode {:o}) is not a private directory owned by uid {uid}",
+            dir.display(),
+            meta.uid(),
+            meta.mode() & 0o7777
+        ));
     }
     Ok(())
 }
 
-fn xdg_runtime_dir() -> Option<Result<PathBuf, String>> {
-    let dir = PathBuf::from(std::env::var_os("XDG_RUNTIME_DIR")?);
-    Some(check_private(&dir, uid()).map(|()| dir))
-}
-
-/// `$XDG_RUNTIME_DIR` when it is private, else a 0700 `noiseman-<uid>` dir in the temp dir. Falling back rather than
-/// failing keeps noiseman working, and the daemon and its clients still meet, since they all fall back alike.
-pub fn runtime_dir() -> Result<PathBuf, String> {
-    if let Some(Ok(dir)) = xdg_runtime_dir() {
-        return Ok(dir);
-    }
-    let uid = uid();
-    let dir = std::path::absolute(std::env::temp_dir().join(format!("noiseman-{uid}")))
-        .map_err(|e| format!("cannot resolve the temp dir: {e}"))?;
-    match fs::DirBuilder::new().mode(0o700).create(&dir) {
+/// Creates `dir` 0700 unless it exists, then checks that it is private.
+fn make_private(dir: &Path, uid: u32) -> Result<(), String> {
+    match fs::DirBuilder::new().mode(0o700).create(dir) {
         Ok(()) => {}
         Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {}
         Err(e) => return Err(format!("cannot create {}: {e}", dir.display())),
     }
-    check_private(&dir, uid)?;
-    Ok(dir)
+    check_private(dir, uid)
 }
 
-/// Why `runtime_dir` passed over `$XDG_RUNTIME_DIR`, if it did.
-pub fn runtime_dir_rejected() -> Option<String> {
-    xdg_runtime_dir()?.err()
+/// `$XDG_CACHE_HOME`, else `~/.cache`, if absolute.
+fn cache_home() -> Option<PathBuf> {
+    let xdg = std::env::var_os("XDG_CACHE_HOME").map(PathBuf::from).filter(|d| d.is_absolute());
+    xdg.or_else(|| std::env::home_dir().map(|h| h.join(".cache"))).filter(|d| d.is_absolute())
+}
+
+/// The runtime dir, and why each candidate before it was passed over. Only the environment and the file system decide,
+/// so the daemon and its clients agree:
+///
+/// 1. `$XDG_RUNTIME_DIR` when it is private: missing without pam_systemd (ssh, cron, containers, `sudo -u`).
+/// 2. A 0700 `noiseman-<uid>` in the temp dir.
+/// 3. When that fails, typically because another user made it first (the sticky temp dir keeps the user from removing
+///    it), a 0700 `noiseman` in the cache home, which no other user can create there: per-user, and like the runtime
+///    dir disposable. Its socket path must fit `sun_path`, which a deep home can exceed.
+fn choose(
+    uid: u32,
+    xdg_runtime_dir: Option<PathBuf>,
+    temp_dir: &Path,
+    cache_home: Option<PathBuf>,
+) -> (Result<PathBuf, String>, Vec<String>) {
+    let mut passed_over = Vec::new();
+    if let Some(dir) = xdg_runtime_dir {
+        match check_private(&dir, uid) {
+            Ok(()) => return (Ok(dir), passed_over),
+            Err(why) => passed_over.push(format!("ignoring $XDG_RUNTIME_DIR: {why}")),
+        }
+    }
+    let tmp_why = match std::path::absolute(temp_dir) {
+        Ok(temp_dir) => {
+            let tmp = temp_dir.join(format!("noiseman-{uid}"));
+            match make_private(&tmp, uid) {
+                Ok(()) => return (Ok(tmp), passed_over),
+                Err(why) => why,
+            }
+        }
+        Err(e) => format!("cannot resolve the temp dir: {e}"),
+    };
+    passed_over.push(format!("ignoring the temp dir: {tmp_why}"));
+    let fallback = cache_home.ok_or_else(|| "no absolute $XDG_CACHE_HOME or $HOME".to_string()).and_then(|cache| {
+        let dir = cache.join("noiseman");
+        let sun_path = std::mem::size_of::<libc::sockaddr_un>() - std::mem::offset_of!(libc::sockaddr_un, sun_path);
+        let socket = dir.join(crate::protocol::SOCKET_NAME);
+        if socket.as_os_str().len() >= sun_path {
+            return Err(format!("{} is too long for a socket path (limit {} bytes)", socket.display(), sun_path - 1));
+        }
+        fs::create_dir_all(&cache).map_err(|e| format!("cannot create {}: {e}", cache.display()))?;
+        make_private(&dir, uid)?;
+        Ok(dir)
+    });
+    let dir = fallback.map_err(|e| {
+        format!("{tmp_why}, and {e}; set TMPDIR or XDG_RUNTIME_DIR to a private (0700) directory of yours")
+    });
+    (dir, passed_over)
+}
+
+fn choose_from_env() -> (Result<PathBuf, String>, Vec<String>) {
+    choose(uid(), std::env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from), &std::env::temp_dir(), cache_home())
+}
+
+/// See `choose`. Falling back rather than failing keeps noiseman working.
+pub fn runtime_dir() -> Result<PathBuf, String> {
+    choose_from_env().0
+}
+
+/// Why `runtime_dir` passed over each candidate before the one it chose.
+pub fn runtime_dir_rejected() -> Vec<String> {
+    choose_from_env().1
 }
 
 /// Opens `path` with `opts`, refusing a symlink there (one planted in the dir would redirect the write), and creating
@@ -106,5 +162,39 @@ mod tests {
         let passed = [&*private, &open, &link, &file, Path::new("relative")].map(|d| check_private(d, uid()).is_ok());
         fs::remove_dir_all(&base).expect("cannot remove the test dir");
         assert_eq!(passed, [true, false, false, false, false]);
+    }
+
+    #[test]
+    fn falls_back_from_a_squatted_temp_dir() {
+        let base = std::env::temp_dir().join(format!("nsm-choose-{}", std::process::id()));
+        let (tmp, cache, uid) = (base.join("tmp"), base.join("cache"), uid());
+        fs::create_dir_all(&tmp).expect("cannot create the test dir");
+        let open = base.join("open");
+        fs::DirBuilder::new().mode(0o755).create(&open).expect("cannot create a dir");
+
+        let (dir, passed_over) = choose(uid, Some(open.clone()), &tmp, Some(cache.clone()));
+        let own = tmp.join(format!("noiseman-{uid}"));
+        assert_eq!(dir, Ok(own.clone()));
+        assert_eq!(passed_over.len(), 1, "{passed_over:?}");
+        assert!(passed_over[0].contains("$XDG_RUNTIME_DIR"));
+
+        fs::set_permissions(&own, fs::Permissions::from_mode(0o755)).expect("cannot chmod");
+        let (dir, passed_over) = choose(uid, None, &tmp, Some(cache.clone()));
+        assert_eq!(dir, Ok(cache.join("noiseman")));
+        assert!(passed_over[0].contains(&*own.to_string_lossy()), "{passed_over:?}");
+        assert_eq!(fs::metadata(cache.join("noiseman")).expect("no fallback").mode() & 0o777, 0o700);
+        assert_eq!(choose(uid, None, &tmp, Some(cache.clone())).0, dir, "the choice is deterministic");
+
+        let xdg = base.join("xdg");
+        fs::DirBuilder::new().mode(0o700).create(&xdg).expect("cannot create a dir");
+        let (dir, passed_over) = choose(uid, Some(xdg.clone()), Path::new(""), None);
+        assert_eq!((dir, passed_over.len()), (Ok(xdg), 0), "a private $XDG_RUNTIME_DIR needs no temp dir");
+
+        let long = base.join("x".repeat(120));
+        let err = choose(uid, None, &tmp, Some(long)).0.expect_err("socket path fits");
+        assert!(err.contains("too long"), "{err}");
+        let err = choose(uid, None, &tmp, None).0.expect_err("no cache home");
+        assert!(err.contains(&*own.to_string_lossy()) && err.contains("owner uid") && err.contains("TMPDIR"), "{err}");
+        fs::remove_dir_all(&base).expect("cannot remove the test dir");
     }
 }

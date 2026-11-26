@@ -37,8 +37,8 @@ enum Msg {
 /// Runs the daemon until a `quit` request. Errors only if it cannot start.
 pub fn serve(muted: bool) -> Result<(), String> {
     log!("noiseman {} started (protocol {})", env!("CARGO_PKG_VERSION"), protocol::PROTOCOL);
-    if let Some(why) = platform::runtime_dir_rejected() {
-        log!("noiseman: ignoring $XDG_RUNTIME_DIR: {why}");
+    for why in platform::runtime_dir_rejected() {
+        log!("noiseman: {why}");
     }
     let lock_path = protocol::runtime_dir()?.join("noiseman.lock");
     // Never truncated: only its lock matters.

@@ -3,8 +3,10 @@
 //!
 //! Each backend (`unix.rs`, `windows.rs`) provides the same items with the same signatures:
 //!
-//! - [`runtime_dir`]: a per-user private directory for the socket, the lock file and the daemon log.
-//! - [`runtime_dir_rejected`]: why `runtime_dir` passed over `$XDG_RUNTIME_DIR` (not private), if it did.
+//! - [`runtime_dir`]: a per-user private directory for the socket, the lock file and the daemon log, chosen from the
+//!   environment and the file system alone, so the daemon and its clients agree.
+//! - [`runtime_dir_rejected`]: why `runtime_dir` passed over each candidate before the one it chose (Unix: a
+//!   non-private `$XDG_RUNTIME_DIR`, or a temp-dir `noiseman-<uid>` another user made first).
 //! - [`open_private`]: opens a file in the runtime dir without following a symlink there, creating it owner-only.
 //! - [`restrict_to_owner`]: makes a just-bound socket file reachable only by its owner.
 //! - [`spawn_detached`]: starts a process that outlives the terminal (and the frontend) that started it.

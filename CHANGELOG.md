@@ -31,6 +31,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 - `install.sh` checks the downloaded archive's own SHA-256 against the published checksum, instead of whatever file
   the `.sha256` line names, and downloads only over HTTPS with TLS 1.2 or later (unless `NOISEMAN_BASE_URL` is set).
+- When `$XDG_RUNTIME_DIR` is unset (ssh, cron, containers, `sudo -u`) and another local user has created
+  `/tmp/noiseman-<uid>` first, noiseman uses a private `noiseman` directory in `$XDG_CACHE_HOME` (or `~/.cache`)
+  instead of failing every command; the player's log says which directory it passed over and why.
 - A broken or hostile PulseAudio server can no longer crash the player or make it allocate gigabytes: a stream format
   with no channels or an invalid sample format is an audio error, and large data requests are written in chunks of
   at most 4 MiB.

@@ -33,7 +33,8 @@ Notes:
     A command that asked for sound (play, unmute, toggle to unmuted, or any command that started
     the daemon) and left the player muted by an audio error exits 1, printing the state to stderr.
   - Runtime files: $XDG_RUNTIME_DIR/noiseman.{sock,lock,log} (fallback when unset or not private:
-    $TMPDIR/noiseman-<uid>/, or %LOCALAPPDATA%\\noiseman on Windows).";
+    $TMPDIR/noiseman-<uid>/, else (if another user made that) $XDG_CACHE_HOME/noiseman/ or
+    ~/.cache/noiseman/, or %LOCALAPPDATA%\\noiseman on Windows).";
 
 pub fn run(args: &[String]) -> ExitCode {
     match exec(args) {

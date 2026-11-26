@@ -61,8 +61,9 @@ Muted, the player releases the audio device and uses no CPU.
 - **No sound:** on Linux, noiseman plays through PulseAudio or PipeWire's pulse server; `pactl info` should show one.
 - **The noise keeps playing after the UI closes:** that is by design; `noiseman stop` (or `s` in the UI) stops it.
 - **Log:** the player writes `noiseman.log` in `$XDG_RUNTIME_DIR` when it is private (0700), else in `noiseman-<uid>/`
-  under `$TMPDIR` (or `/tmp`), or on Windows in `%LOCALAPPDATA%\noiseman`; each run starts with its version, and every
-  line has a UTC time.
+  under `$TMPDIR` (or `/tmp`), else (when another user made that one first) in `noiseman/` under `$XDG_CACHE_HOME` (or
+  `~/.cache`), or on Windows in `%LOCALAPPDATA%\noiseman`; each run starts with its version and any directory it
+  passed over, and every line has a UTC time.
 - **Bug reports:** include the output of `noiseman --version`.
 
 ## Uninstall
