@@ -1,9 +1,10 @@
 # Contributing
 
-`AGENTS.md` describes the layout, invariants and release process; `DESIGN.md` has the full design. Report bugs and
-propose changes as [GitHub issues](https://github.com/roudy16/noiseman/issues); report vulnerabilities privately, as
-`SECURITY.md` describes. Run `just check` before committing. CI runs `just ci` (fmt check, lint, tests and the size
-gates; the timing and runtime gates are for local runs) on Linux, and clippy and tests on macOS and Windows.
+`AGENTS.md` describes the layout, invariants and release process; `DESIGN.md` explains the design decisions. Report bugs
+and propose changes as [GitHub issues](https://github.com/roudy16/noiseman/issues); report vulnerabilities privately, as
+`SECURITY.md` describes. Run `just check` before committing. CI runs `just ci` (fmt check, lint, tests, the web build
+and the size gates; the timing and runtime gates are for local runs) on Linux, and clippy and tests on macOS and
+Windows.
 
 ## Build from source
 
@@ -26,28 +27,11 @@ or use `alias nsm=noiseman`. On Linux and macOS, `just install` instead builds t
 
 ## Development
 
-Dev workflows go through [`just`](https://github.com/casey/just) (run `just` alone to list all recipes):
-
-```sh
-just setup                 # fetch dependencies and add the wasm32 target
-just build                 # compile (use cargo --features gui for the window)
-just run [args...]         # run the binary
-just test                  # run workspace tests
-just fmt                   # format with rustfmt
-just lint                  # clippy across default, gui and wasm32 targets
-just gates                 # check size, DSP and runtime limits (gates.toml)
-just check                 # fmt check, lint, test and gates (run before committing)
-just ci                    # what CI runs: fmt check, lint, test and the size gates
-just deps                  # check advisories and outdated dependencies (network)
-just metrics [--json]      # report code size and complexity (not a gate)
-just web                   # build the static browser demo into target/web
-just web-serve             # serve the browser demo on http://localhost:8000
-just profile [kind] [secs] # profile the DSP into profiles/dsp-<kind>.*
-just install               # install the terminal build and nsm link to ~/.local/bin (+ icons, desktop entry on Linux)
-just install-gui           # the same, built with the window (its desktop entry opens the window)
-just package [target] [gui] # build a release archive (gui: with the window) into target/dist
-just clean                 # remove build artifacts
-```
+Dev workflows go through [`just`](https://github.com/casey/just); run `just` alone to list the recipes. Besides the
+build prerequisites, they need `just` and Python 3.11 or newer: `tools/gates.py` imports `tomllib`, so `just check` and
+`just ci` fail on an older Python such as Ubuntu 22.04's 3.10. `just setup` adds the `wasm32-unknown-unknown` target
+the lint and the web demo need. GNU time (`/usr/bin/time`) is optional: without it `just gates` skips the CLI memory
+gate.
 
 ## Licenses
 

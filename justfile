@@ -40,7 +40,7 @@ check:
     just test
     just gates
 
-# what CI runs: format check, lint, tests and the size gates (DSP and runtime gates are for local runs)
+# what CI runs on Linux (see .github/workflows/ci.yml)
 ci:
     cargo fmt --all --check
     just lint

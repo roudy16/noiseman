@@ -1,6 +1,6 @@
-# Checks pushes to main and pull requests: on Linux `just ci` (format, lint, tests, size gates; the timing and
-# runtime gates need a quiet machine and a PulseAudio server, so they stay local), on macOS and Windows clippy and the
-# tests (with gui) of the root package and core, which hold the OS-specific code.
+# Checks pushes to main and pull requests: on Linux `just ci` (format, lint, tests, web build, size gates; the timing
+# and runtime gates need a quiet machine and a PulseAudio server, so they stay local), on macOS and Windows clippy and
+# the tests (with gui) of the root package and core, which hold the OS-specific code.
 name: CI
 
 on:

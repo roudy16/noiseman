@@ -5,8 +5,8 @@ Expects release builds (`just gates` makes them). The runtime gates start a priv
 `--muted`, then `vol 0` + `unmute`: a real PulseAudio stream at zero gain, so it costs what playing costs, silently.
 Without a PulseAudio server they are reported as SKIP; with one, a daemon that cannot start a stream fails them. They
 read /proc, so they run on Linux only; elsewhere they are SKIP too, and the size and DSP gates still run. The DSP gate
-fails if the benchmark's output has no line it can read. `--sizes-only` (CI, on shared runners where timing and
-resource use mean little) runs only the size gates. Exit status 1 if any gate fails.
+fails if the benchmark's output has no line it can read. `--sizes-only` runs only the size gates. Exit status 1 if any
+gate fails.
 """
 
 import os

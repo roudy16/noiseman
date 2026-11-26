@@ -1,8 +1,6 @@
 # Limits for `just gates` (tools/gates.py). Baselines measured 2026-11-24 on Linux x86_64 (PipeWire 1.6 pulse
 # server), release build. Sizes and memory have ~10-30% headroom; thread and wakeup counts are design invariants
 # (see AGENTS.md). Raise a limit only on purpose, in the commit that needs it, and say why.
-# CI (`just ci`, GitHub's shared runners) checks only [size]; [dsp] and [runtime] are timing and resource gates for
-# local runs.
 
 [size]
 noiseman_bytes = 900_000       # default features, no gui
