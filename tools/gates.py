@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Quality gates: artifact sizes, DSP speed, daemon memory/threads/CPU/wakeups, TUI and CLI memory. Limits: gates.toml.
 
-Expects release builds (`just gates` makes them). The runtime gates start a private daemon (own runtime dir) with
-`--muted`, then `vol 0` + `unmute`: a real PulseAudio stream at zero gain, so it costs what playing costs, silently.
+Expects release builds (`just gates` makes them). The runtime gates start a private daemon (own runtime and state
+dirs) with `--muted`, then `vol 0` + `unmute`: a real PulseAudio stream at zero gain, so it costs what playing costs,
+silently.
 Without a PulseAudio server they are reported as SKIP; with one, a daemon that cannot start a stream fails them. They
 read /proc, so they run on Linux only; elsewhere they are SKIP too, and the size and DSP gates still run. The DSP gate
 fails if the benchmark's output has no line it can read. `--sizes-only` runs only the size gates. Exit status 1 if any
@@ -107,7 +108,8 @@ def runtime(limits: dict) -> None:
         return
     # A short path: the socket path must fit in sun_path (108 bytes).
     rundir = tempfile.mkdtemp(prefix="nm-gate-", dir="/tmp")
-    env = {**os.environ, "XDG_RUNTIME_DIR": rundir, "PULSE_SERVER": pulse}
+    # The gates set vol 0: never on the user's saved state.
+    env = {**os.environ, "XDG_RUNTIME_DIR": rundir, "XDG_STATE_HOME": rundir, "PULSE_SERVER": pulse}
     env.pop("PULSE_RUNTIME_PATH", None)
     log = open(Path(rundir) / "daemon.log", "w")
     daemon = subprocess.Popen([BIN, "daemon", "--muted"], env=env, stdin=subprocess.DEVNULL, stderr=log)
@@ -168,6 +170,10 @@ def runtime(limits: dict) -> None:
         settle_end = time.monotonic() + 1.5
         while len(threads(daemon.pid)) > limits["muted_threads"] and time.monotonic() < settle_end:
             time.sleep(0.01)
+        # `vol 0` above is saved a second later; that write's wakeup must not land in the muted window, nor the player
+        # blocking again just after it.
+        wait_until((Path(rundir) / "noiseman" / "state").exists, 2, "the saved volume")
+        time.sleep(0.05)
         _, wakeups = activity(daemon.pid, 0.3)
         mem = memory_kb(daemon.pid)
         gate("daemon muted: private memory", mem["private"], limits["muted_private_kb"], "kB")

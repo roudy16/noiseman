@@ -8,6 +8,7 @@ pub(crate) use log;
 
 mod audio;
 mod player;
+mod saved;
 
 use std::fs::{self, OpenOptions, TryLockError};
 use std::io::{self, BufRead, BufReader, Write};
@@ -28,6 +29,8 @@ use player::Player;
 const WRITE_TIMEOUT: Duration = Duration::from_millis(200);
 /// Longer than the quit fade deadline set in `Player::set_muted`.
 const LOCK_WAIT: Duration = Duration::from_secs(1);
+/// From the first unsaved change, so a held volume key writes once a second at most.
+const SAVE_DELAY: Duration = Duration::from_secs(1);
 
 enum Msg {
     Request(Command, Arc<UnixStream>),
@@ -77,12 +80,23 @@ pub fn serve(muted: bool) -> Result<(), String> {
             log!("noiseman: audio lost after the player stopped");
         }
     };
-    let mut player = Player::new(Arc::new(on_lost), muted);
+    let mut saved = saved::load();
+    let mut player = Player::new(Arc::new(on_lost), saved, muted);
     let mut watchers: Vec<Arc<UnixStream>> = Vec::new();
     let mut last = player.state();
+    let mut save_at: Option<Instant> = None;
+    let mut save_failed = false;
+    let mut save = |kind_vol| match saved::save(kind_vol) {
+        Ok(()) => save_failed = false,
+        Err(e) if !save_failed => {
+            log!("noiseman: cannot save the kind and volume: {e}");
+            save_failed = true;
+        }
+        Err(_) => {}
+    };
 
     loop {
-        let msg = match player.deadline() {
+        let msg = match [player.deadline(), save_at].into_iter().flatten().min() {
             Some(t) => rx.recv_timeout(t.saturating_duration_since(Instant::now())),
             None => rx.recv().map_err(|_| RecvTimeoutError::Disconnected),
         };
@@ -106,12 +120,25 @@ pub fn serve(muted: bool) -> Result<(), String> {
                 break;
             }
         }
-        player.tick(Instant::now());
+        let now = Instant::now();
+        player.tick(now);
         let state = player.state();
+        if (state.kind, state.vol) == saved {
+            save_at = None;
+        } else if save_at.is_some_and(|t| now >= t) {
+            saved = (state.kind, state.vol);
+            save(saved);
+            save_at = None;
+        } else if save_at.is_none() {
+            save_at = Some(now + SAVE_DELAY);
+        }
         if state != last {
             watchers.retain(|w| send(w, &state).is_ok());
             last = state;
         }
+    }
+    if save_at.is_some() {
+        save((last.kind, last.vol));
     }
     if let Err(e) = fs::remove_file(&path) {
         log!("noiseman: cannot remove {}: {e}", path.display());

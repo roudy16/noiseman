@@ -52,7 +52,20 @@ pub fn runtime_dir() -> Result<PathBuf, String> {
     if let Some(dir) = std::env::var_os("XDG_RUNTIME_DIR") {
         return Ok(PathBuf::from(dir));
     }
+    local_app_data()
+}
+
+fn local_app_data() -> Result<PathBuf, String> {
     let base = std::env::var_os("LOCALAPPDATA").ok_or("LOCALAPPDATA is not set")?;
+    let dir = PathBuf::from(base).join("noiseman");
+    fs::create_dir_all(&dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
+    Ok(dir)
+}
+
+/// `noiseman` under `$XDG_STATE_HOME` if set (as on Unix, so the tests and gates can keep their own), else
+/// `%LOCALAPPDATA%\noiseman`, beside the runtime files.
+pub fn state_dir() -> Result<PathBuf, String> {
+    let Some(base) = std::env::var_os("XDG_STATE_HOME") else { return local_app_data() };
     let dir = PathBuf::from(base).join("noiseman");
     fs::create_dir_all(&dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
     Ok(dir)

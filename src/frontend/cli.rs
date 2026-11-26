@@ -26,15 +26,17 @@ Interactive & daemon:
   version | -V         show the version (also --version)
 
 Notes:
-  - Commands that play or change settings auto-start the background daemon
-    (default: brown, 50%, playing). `status`, `mute` and `stop` never start it.
+  - Commands that play or change settings auto-start the background daemon, playing the last
+    noise and volume (brown, 50% the first time). `status`, `mute` and `stop` never start it.
   - Output format: `<Kind> <vol>% <playing|muted>` (or `stopped` / `not running`).
   - Exit status: 0 on success, 1 on error (errors go to stderr, e.g. `status` when stopped).
     A command that asked for sound (play, unmute, toggle to unmuted, or any command that started
     the daemon) and left the player muted by an audio error exits 1, printing the state to stderr.
   - Runtime files: $XDG_RUNTIME_DIR/noiseman.{sock,lock,log} (fallback when unset or not private:
     $TMPDIR/noiseman-<uid>/, else (if another user made that) $XDG_CACHE_HOME/noiseman/ or
-    ~/.cache/noiseman/, or %LOCALAPPDATA%\\noiseman on Windows).";
+    ~/.cache/noiseman/, or %LOCALAPPDATA%\\noiseman on Windows).
+  - Saved noise and volume: $XDG_STATE_HOME/noiseman/state, else ~/.local/state/noiseman/state
+    (macOS: ~/Library/Application Support/noiseman/state, Windows: %LOCALAPPDATA%\\noiseman\\state).";
 
 pub fn run(args: &[String]) -> ExitCode {
     match exec(args) {

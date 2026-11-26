@@ -107,6 +107,19 @@ fades instead of being cut mid-buffer. Unmuting a dropped stream opens a new one
 The cost is a stream open on every unmute and on device loss. A start failure is logged, shown to frontends in the
 state's error field, and leaves the player muted, so unmuting retries.
 
+## Remembering the kind and volume
+
+The daemon starts with the kind and volume it last had, as the web demo does from localStorage; without a saved state
+it starts brown at 50. They live in `state` (`kind pink\nvol 30\n`, plain `std::fs`, no serde) under
+`$XDG_STATE_HOME/noiseman` or `~/.local/state/noiseman` (macOS `~/Library/Application Support/noiseman`, Windows
+`%LOCALAPPDATA%\noiseman`), not the runtime dir, which a reboot clears. A malformed field falls back to its default
+with one log line; nothing in the file can stop the daemon starting. It is read once at start and replaced atomically
+(a temp file, then a rename) one second after the first unsaved change, so a held volume key writes once a second at
+most, and on quit if a write is pending. The player loop waits with `recv_timeout` only while a write is pending, so a
+muted, idle daemon still makes no wakeups. Mute is not saved: starting the player means wanting sound, and a daemon
+that came back muted would look broken. The tests and gates set `$XDG_STATE_HOME` to their own temp dir, as they do
+`$XDG_RUNTIME_DIR`, so they never touch the user's file.
+
 ## Audio on Linux
 
 cpal uses its `pulseaudio` host, which talks to PulseAudio or PipeWire's pulse server directly. Through ALSA's
@@ -200,7 +213,6 @@ one minimum for both architectures, where rustc's defaults are 10.12 for x86_64 
 - Looped or wavetable noise, FFT synthesis: the signals are aperiodic (see above).
 - Grey noise (needs ISO 226 equal-loudness tuning), velvet noise, decorrelated stereo: add when asked. Output is mono,
   written to every channel.
-- Saving the last kind and volume: add when asked (one small `std::fs` file, no serde).
 - A device picker or sample-rate, buffer or latency settings: the player always uses the default device in its own
   format.
 - Global or media keys, a sleep timer, EQ, presets.

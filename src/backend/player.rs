@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use super::audio;
-use crate::protocol::{Command, State};
+use crate::protocol::{Command, Kind, State};
 
 /// Playback state that every frontend sees: volume, mute and the audio stream's lifetime.
 pub struct Player {
@@ -15,10 +15,11 @@ pub struct Player {
 }
 
 impl Player {
-    /// Starts playing at once unless `muted`. `on_lost` runs on the audio thread when the device or stream goes away;
-    /// it must get [`Player::audio_lost`] called on the player's thread.
-    pub fn new(on_lost: Arc<dyn Fn() + Send + Sync>, muted: bool) -> Player {
-        let mut p = Player { on_lost, stream: None, drop_stream_at: None, vol: 50, muted: true, error: None };
+    /// Starts playing `kind` at `vol` at once unless `muted`. `on_lost` runs on the audio thread when the device or
+    /// stream goes away; it must get [`Player::audio_lost`] called on the player's thread.
+    pub fn new(on_lost: Arc<dyn Fn() + Send + Sync>, (kind, vol): (Kind, i32), muted: bool) -> Player {
+        audio::set_kind(kind);
+        let mut p = Player { on_lost, stream: None, drop_stream_at: None, vol, muted: true, error: None };
         p.set_muted(muted);
         p
     }

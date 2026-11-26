@@ -22,6 +22,9 @@ Only the latest release gets fixes. The installers always fetch it.
   log are 0600, and the lock file and log are opened without following symlinks and never truncated. On Windows it lives
   in `%LOCALAPPDATA%\noiseman`, whose ACL admits only the user, SYSTEM and administrators; `$XDG_RUNTIME_DIR`, which
   only the tests and gates set there, is taken as given.
+- The saved noise kind and volume are in a `state` file, 0600 and replaced through a temp file opened without following
+  symlinks, in a 0700 `noiseman` directory under `$XDG_STATE_HOME` or `~/.local/state` (macOS: `~/Library/Application
+  Support`; Windows: `%LOCALAPPDATA%\noiseman`). The daemon reads only a kind name and a number from it.
 - Anything running as the same user can control the player and read its log; that is by design, not a vulnerability.
 - The installers download from GitHub Releases over HTTPS and check each archive against its published SHA-256 before
   installing. `install.sh` with curl refuses any other protocol or a TLS version below 1.2, redirects included, unless

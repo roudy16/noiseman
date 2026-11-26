@@ -54,6 +54,9 @@ space mutes, and `s` stops. `q` or `Esc` closes the UI and leaves the noise play
 (there `q` hides it to the tray; on macOS so does Cmd-W, and Cmd-Q stops); the browser demo takes the noise, volume and
 mute ones.
 
+The player starts with the noise and volume it last had, saved in `~/.local/state/noiseman/state` (or under
+`$XDG_STATE_HOME`; on macOS `~/Library/Application Support/noiseman`, on Windows `%LOCALAPPDATA%\noiseman`).
+
 Muted, the player releases the audio device and uses no CPU.
 [How it works](https://roudy16.github.io/noiseman/architecture/) explains the design.
 
@@ -75,6 +78,7 @@ On Windows, use Settings > Apps > noiseman > Uninstall. On Linux and macOS:
 noiseman stop
 [ "$(readlink ~/.local/bin/nsm)" = noiseman ] && rm ~/.local/bin/nsm
 rm ~/.local/bin/noiseman
+rm -r ~/.local/state/noiseman   # the saved noise and volume (macOS: ~/Library/Application\ Support/noiseman)
 # Linux only: the desktop entry and icons
 rm ~/.local/share/applications/noiseman.desktop ~/.local/share/icons/hicolor/*/apps/noiseman.*
 ```

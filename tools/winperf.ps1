@@ -90,6 +90,7 @@ $start = [Diagnostics.Stopwatch]::StartNew()
 $rundir = Join-Path $env:TEMP ('nm-gate-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
 New-Item -ItemType Directory $rundir | Out-Null
 $env:XDG_RUNTIME_DIR = $rundir
+$env:XDG_STATE_HOME = $rundir  # the gates set vol 0: never on the user's saved state
 $daemon = Start-Process $Bin -ArgumentList 'daemon', '--muted' -PassThru -WindowStyle Hidden -RedirectStandardError "$rundir\daemon.log"
 $tui = $null; $conn = $null; $r = [ordered]@{}
 try {

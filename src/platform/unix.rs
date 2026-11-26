@@ -108,6 +108,20 @@ pub fn runtime_dir_rejected() -> Vec<String> {
     choose_from_env().1
 }
 
+/// A 0700 `noiseman` under `$XDG_STATE_HOME` if that is absolute (on macOS too, so the tests and gates can keep their
+/// own), else under `~/.local/state` (macOS: `~/Library/Application Support`). Not the runtime dir: it must survive a
+/// reboot.
+pub fn state_dir() -> Result<PathBuf, String> {
+    let xdg = std::env::var_os("XDG_STATE_HOME").map(PathBuf::from).filter(|d| d.is_absolute());
+    let home_state = if cfg!(target_os = "macos") { "Library/Application Support" } else { ".local/state" };
+    let base = xdg.or_else(|| std::env::home_dir().map(|h| h.join(home_state))).filter(|d| d.is_absolute());
+    let base = base.ok_or("no absolute $XDG_STATE_HOME or $HOME")?;
+    fs::create_dir_all(&base).map_err(|e| format!("cannot create {}: {e}", base.display()))?;
+    let dir = base.join("noiseman");
+    make_private(&dir, uid())?;
+    Ok(dir)
+}
+
 /// Opens `path` with `opts`, refusing a symlink there (one planted in the dir would redirect the write), and creating
 /// the file 0600.
 pub fn open_private(opts: &mut OpenOptions, path: &Path) -> io::Result<File> {

@@ -11,6 +11,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   GitHub Discussions.
 - Each release file (archives, checksums and both installers) has a signed build provenance attestation; check a
   download with `gh attestation verify <file> --repo roudy16/noiseman` (see SECURITY.md).
+- The player remembers the last noise and volume across `noiseman stop`, logout and reboot, in
+  `$XDG_STATE_HOME/noiseman/state` (default `~/.local/state/noiseman/state`; macOS
+  `~/Library/Application Support/noiseman/state`; Windows `%LOCALAPPDATA%\noiseman\state`); `noiseman --help` says
+  where. Mute is not saved: a started player plays.
 - Windows: the gui build has a notification-area icon. Left-click shows or hides the window; right-click opens Show/Hide
   window, Mute and Quit. Closing the window (or `q`, Esc) hides it to the icon and keeps the noise playing, as on Linux.
 - macOS: the gui build has a menu bar icon with Show/Hide window, Mute and Quit. Closing the window (close button, `q`,

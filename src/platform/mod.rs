@@ -7,7 +7,10 @@
 //!   environment and the file system alone, so the daemon and its clients agree.
 //! - [`runtime_dir_rejected`]: why `runtime_dir` passed over each candidate before the one it chose (Unix: a
 //!   non-private `$XDG_RUNTIME_DIR`, or a temp-dir `noiseman-<uid>` another user made first).
-//! - [`open_private`]: opens a file in the runtime dir without following a symlink there, creating it owner-only.
+//! - [`state_dir`]: a per-user private directory that survives a reboot, for the saved kind and volume; tests and
+//!   gates point it elsewhere with `$XDG_STATE_HOME`, on every OS.
+//! - [`open_private`]: opens a file in the runtime or state dir without following a symlink there, creating it
+//!   owner-only.
 //! - [`restrict_to_owner`]: makes a just-bound socket file reachable only by its owner.
 //! - [`spawn_detached`]: starts a process that outlives the terminal (and the frontend) that started it.
 //! - [`terminal_truecolor`]: whether the terminal on stdout renders 24-bit color though its environment does not say
@@ -32,7 +35,8 @@ compile_error!("noiseman supports Unix (Linux, macOS) and Windows");
 #[cfg(feature = "gui")]
 pub use imp::alert_if_no_console;
 pub use imp::{
-    net, open_private, restrict_to_owner, runtime_dir, runtime_dir_rejected, spawn_detached, terminal_truecolor,
+    net, open_private, restrict_to_owner, runtime_dir, runtime_dir_rejected, spawn_detached, state_dir,
+    terminal_truecolor,
 };
 
 #[cfg(test)]

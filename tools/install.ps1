@@ -196,7 +196,8 @@ if ((Get-ItemProperty $key -ErrorAction SilentlyContinue).PathAdded -eq 1) {
     $reg.Close()
     [Environment]::SetEnvironmentVariable('NOISEMAN_INSTALL', $null, 'User')  # tells running programs PATH changed
 }
-Remove-Item -Recurse -Force (Join-Path $env:LOCALAPPDATA 'noiseman') -ErrorAction SilentlyContinue  # lock file, log
+# The lock file, log and saved state.
+Remove-Item -Recurse -Force (Join-Path $env:LOCALAPPDATA 'noiseman') -ErrorAction SilentlyContinue
 Remove-Item -Recurse -Force $key
 '@
 

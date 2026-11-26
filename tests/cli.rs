@@ -1,4 +1,5 @@
-//! The CLI and a muted daemon as separate processes, in a private runtime dir: no audio device needed.
+//! The CLI and a muted daemon as separate processes, in a private runtime and state dir: no audio device needed,
+//! and the user's saved kind and volume are never read or written.
 
 use std::fs::{self, File};
 use std::path::PathBuf;
@@ -9,7 +10,7 @@ use std::time::{Duration, Instant};
 
 const BIN: &str = env!("CARGO_BIN_EXE_noiseman");
 
-/// Kills the daemon and removes the runtime dir, even when an assertion fails.
+/// Kills the daemon and removes the runtime dir (also the state dir), even when an assertion fails.
 struct Runtime {
     dir: PathBuf,
     daemon: Option<Child>,
@@ -30,13 +31,30 @@ impl Runtime {
 
     fn command(&self, args: &[&str]) -> Command {
         let mut cmd = Command::new(BIN);
-        cmd.args(args).env("XDG_RUNTIME_DIR", &self.dir).stdin(Stdio::null());
+        cmd.args(args).env("XDG_RUNTIME_DIR", &self.dir).env("XDG_STATE_HOME", &self.dir).stdin(Stdio::null());
         cmd
     }
 
     fn run(&self, args: &[&str]) -> (Option<i32>, String, String) {
         let Output { status, stdout, stderr } = self.command(args).output().expect("cannot run noiseman");
         (status.code(), String::from_utf8_lossy(&stdout).into(), String::from_utf8_lossy(&stderr).into())
+    }
+
+    fn start_muted_daemon(&mut self) {
+        let log = File::create(self.dir.join("daemon.log")).expect("cannot create the daemon log");
+        let daemon = self.command(&["daemon", "--muted"]).stdout(Stdio::null()).stderr(log).spawn();
+        self.daemon = Some(daemon.expect("cannot start the daemon"));
+        // Not the socket file: it exists before listen(), and a refused `vol` would autostart an unmuted daemon.
+        self.wait_for("the daemon", |rt| rt.run(&["status"]).0 == Some(0));
+    }
+
+    fn stop_daemon(&mut self) {
+        assert_eq!(self.run(&["stop"]), (Some(0), "stopped\n".into(), String::new()));
+        let sock = self.dir.join("noiseman.sock");
+        self.wait_for("the socket to go", |_| !sock.exists());
+        self.wait_for("the daemon to exit", |rt| {
+            rt.daemon.as_mut().is_some_and(|d| matches!(d.try_wait(), Ok(Some(_))))
+        });
     }
 
     fn wait_for(&mut self, what: &str, mut done: impl FnMut(&mut Runtime) -> bool) {
@@ -69,23 +87,31 @@ impl Drop for Runtime {
 #[test]
 fn status_vol_stop_across_processes() {
     let mut rt = Runtime::new();
-    let sock = rt.dir.join("noiseman.sock");
     assert_eq!(rt.run(&["status"]), (Some(1), String::new(), "noiseman: not running\n".into()));
-
-    let log = File::create(rt.dir.join("daemon.log")).expect("cannot create the daemon log");
-    let daemon = rt.command(&["daemon", "--muted"]).stdout(Stdio::null()).stderr(log).spawn();
-    rt.daemon = Some(daemon.expect("cannot start the daemon"));
-    // Not the socket file: it exists before listen(), and a refused `vol` would autostart an unmuted daemon.
-    rt.wait_for("the daemon", |rt| rt.run(&["status"]).0 == Some(0));
+    rt.start_muted_daemon();
 
     // The daemon runs, so neither command can start an unmuted one.
     assert_eq!(rt.run(&["vol", "30"]), (Some(0), "Brown 30% muted\n".into(), String::new()));
     assert_eq!(rt.run(&["status"]), (Some(0), "Brown 30% muted\n".into(), String::new()));
-
-    assert_eq!(rt.run(&["stop"]), (Some(0), "stopped\n".into(), String::new()));
-    rt.wait_for("the socket to go", |_| !sock.exists());
-    rt.wait_for("the daemon to exit", |rt| rt.daemon.as_mut().is_some_and(|d| matches!(d.try_wait(), Ok(Some(_)))));
+    rt.stop_daemon();
     assert_eq!(rt.run(&["stop"]), (Some(0), "not running\n".into(), String::new()));
+}
+
+#[test]
+fn restart_restores_kind_and_volume() {
+    let mut rt = Runtime::new();
+    rt.start_muted_daemon();
+    assert_eq!(rt.run(&["status"]), (Some(0), "Brown 50% muted\n".into(), String::new()), "no saved state yet");
+    assert_eq!(rt.run(&["kind", "pink"]), (Some(0), "Pink 50% muted\n".into(), String::new()));
+    assert_eq!(rt.run(&["vol", "30"]), (Some(0), "Pink 30% muted\n".into(), String::new()));
+    // Within the save delay: quitting writes the pending change.
+    rt.stop_daemon();
+    let saved = fs::read_to_string(rt.dir.join("noiseman").join("state")).expect("cannot read the saved state");
+    assert_eq!(saved, "kind pink\nvol 30\n");
+
+    rt.start_muted_daemon();
+    assert_eq!(rt.run(&["status"]), (Some(0), "Pink 30% muted\n".into(), String::new()));
+    rt.stop_daemon();
 }
 
 #[cfg(unix)]
