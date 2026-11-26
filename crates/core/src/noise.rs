@@ -4,6 +4,8 @@ const WHITE_GAIN: f32 = 0.218;
 const PINK_GAIN: f32 = 0.0715;
 const BLUE_GAIN: f32 = 0.120;
 const VIOLET_GAIN: f32 = 0.154;
+const BROWN_HZ: f32 = 15.3;
+const BROWN_GAIN: f32 = 0.2183;
 
 pub struct Noise {
     rng: u64,
@@ -16,13 +18,13 @@ pub struct Noise {
 
 impl Noise {
     pub fn new(sample_rate: u32, seed: u64) -> Self {
-        let a = (-2.0 * std::f32::consts::PI * 15.3 / sample_rate as f32).exp();
+        let a = (-2.0 * std::f32::consts::PI * BROWN_HZ / sample_rate as f32).exp();
         Noise {
             rng: seed | 1,
             pink: [0.0; 7],
             brown: 0.0,
             brown_a: a,
-            brown_b: 0.0138 * ((1.0 - a * a) / (1.0 - 0.998_f32 * 0.998)).sqrt(),
+            brown_b: BROWN_GAIN * (1.0 - a * a).sqrt(),
             prev: 0.0,
         }
     }

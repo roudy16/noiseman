@@ -461,14 +461,14 @@ impl App {
     }
 
     fn draw(&mut self) -> Result<(), softbuffer::SoftBufferError> {
+        let error = self.error().map(str::to_owned);
         let Some(view) = &mut self.view else { return Ok(()) };
         let scale = view.scale();
         let size = view.window.inner_size();
         let (Some(w), Some(h)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height)) else { return Ok(()) };
         view.surface.resize(w, h)?;
         let mut buf = view.surface.buffer_mut()?;
-        let error = self.problem.as_deref().or(self.state.error.as_deref()).or(self.warning.as_deref());
-        paint(&mut buf, w.get() as i32, h.get() as i32, scale, &self.state, self.tray.is_some(), error);
+        paint(&mut buf, w.get() as i32, h.get() as i32, scale, &self.state, self.tray.is_some(), error.as_deref());
         buf.present()
     }
 }
@@ -603,31 +603,23 @@ impl ApplicationHandler<Event> for App {
 }
 
 pub fn run() -> ExitCode {
-    let event_loop = match EventLoop::with_user_event().build() {
-        Ok(el) => el,
+    match exec() {
+        Ok(code) => code,
         Err(e) => {
-            fail(&format!("cannot start event loop: {e}"));
-            return ExitCode::FAILURE;
+            fail(&e);
+            ExitCode::FAILURE
         }
-    };
+    }
+}
+
+fn exec() -> Result<ExitCode, String> {
+    let event_loop = EventLoop::with_user_event().build().map_err(|e| format!("cannot start event loop: {e}"))?;
     let proxy = event_loop.create_proxy();
-    let Client { mut sender, mut receiver, warning, .. } = match Client::connect(true) {
-        Ok(c) => c,
-        Err(e) => {
-            fail(&e);
-            return ExitCode::FAILURE;
-        }
-    };
-    let first = match sender.send(Command::Watch).and_then(|()| receiver.recv()) {
-        Ok(Some(Ok(s))) => s,
-        Ok(Some(Err(e))) | Err(e) => {
-            fail(&e);
-            return ExitCode::FAILURE;
-        }
-        Ok(None) => {
-            fail("player stopped");
-            return ExitCode::FAILURE;
-        }
+    let Client { mut sender, mut receiver, warning, .. } = Client::connect(true)?;
+    let first = match sender.send(Command::Watch).and_then(|()| receiver.recv())? {
+        Some(Ok(s)) => s,
+        Some(Err(e)) => return Err(e),
+        None => return Err("player stopped".into()),
     };
     let replies = proxy.clone();
     thread::spawn(move || {
@@ -658,11 +650,8 @@ pub fn run() -> ExitCode {
     };
     // The window is created later, in `resumed`.
     tray::spawn(app.proxy.clone(), TrayState { shown: true, ..app.tray_state() });
-    if let Err(e) = event_loop.run_app(&mut app) {
-        fail(&format!("event loop failed: {e}"));
-        return ExitCode::FAILURE;
-    }
-    if app.failed { ExitCode::FAILURE } else { ExitCode::SUCCESS }
+    event_loop.run_app(&mut app).map_err(|e| format!("event loop failed: {e}"))?;
+    Ok(if app.failed { ExitCode::FAILURE } else { ExitCode::SUCCESS })
 }
 
 #[cfg(test)]

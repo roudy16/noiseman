@@ -253,9 +253,12 @@ fn hint_width(keys: &[(&[&str], &str)], sep: usize) -> u16 {
     (text + sep * (keys.len() - 1)) as u16
 }
 
-fn draw(out: &mut Stdout, p: &Palette, state: Option<&State>, problem: Option<&str>) -> io::Result<()> {
+fn dim(out: &mut Stdout, color: Color, text: &str) -> io::Result<()> {
+    queue!(out, SetForegroundColor(color), SetAttribute(Attribute::Dim), Print(text), SetAttribute(Attribute::Reset))
+}
+
+fn draw(out: &mut Stdout, p: &Palette, state: Option<&State>, error: Option<&str>) -> io::Result<()> {
     let (cols, rows) = terminal::size()?;
-    let error = problem.or(state.and_then(|s| s.error.as_deref()));
     let full = cols >= 58 && rows >= 15;
     let (w, padx, pady) = if full { (46, 4, 2) } else { (38.min(cols), 0, 0) };
     let (bw, bh) = (w + 2 * padx, if error.is_some() { 8 } else { 6 } + 2 * pady);
@@ -286,11 +289,12 @@ fn draw(out: &mut Stdout, p: &Palette, state: Option<&State>, problem: Option<&s
     }
     queue!(out, SetAttribute(Attribute::Reset), ResetColor)?;
     if let Some(s) = state {
+        let label = if s.muted { "◌ Muted" } else { "● Playing" };
+        queue!(out, MoveTo(x + w.saturating_sub(label.chars().count() as u16), y))?;
         if s.muted {
-            queue!(out, MoveTo(x + w.saturating_sub(7), y), SetAttribute(Attribute::Dim), Print("◌ Muted"))?;
+            queue!(out, SetAttribute(Attribute::Dim), Print(label))?;
         } else {
-            queue!(out, MoveTo(x + w.saturating_sub(9), y), SetForegroundColor(p.rgb(super::GREEN)), Print("● "))?;
-            queue!(out, ResetColor, Print("Playing"))?;
+            queue!(out, SetForegroundColor(p.rgb(super::GREEN)), Print("● "), ResetColor, Print("Playing"))?;
         }
         queue!(out, SetAttribute(Attribute::Reset), MoveTo(x, y + 3))?;
         let labels: u16 = Kind::ALL.iter().map(|k| k.label().len() as u16).sum();
@@ -331,23 +335,11 @@ fn draw(out: &mut Stdout, p: &Palette, state: Option<&State>, problem: Option<&s
     queue!(out, MoveTo(cols.saturating_sub(hint_width(keys, sep.chars().count())) / 2, top + bh + 1))?;
     for (i, (opts, desc)) in keys.iter().enumerate() {
         if i > 0 {
-            queue!(
-                out,
-                SetForegroundColor(t.track),
-                SetAttribute(Attribute::Dim),
-                Print(sep),
-                SetAttribute(Attribute::Reset)
-            )?;
+            dim(out, t.track, sep)?;
         }
         for (j, key) in opts.iter().enumerate() {
             if j > 0 {
-                queue!(
-                    out,
-                    SetForegroundColor(t.track),
-                    SetAttribute(Attribute::Dim),
-                    Print("/"),
-                    SetAttribute(Attribute::Reset)
-                )?;
+                dim(out, t.track, "/")?;
             }
             queue!(out, SetForegroundColor(t.accent), SetAttribute(Attribute::Bold), Print(key))?;
             queue!(out, SetAttribute(Attribute::Reset))?;
