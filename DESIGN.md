@@ -142,6 +142,27 @@ rejected: four more threads, one of them waking every 500 ms. D-Bus calls have n
 thread, and a stalled tray watcher cannot freeze the window. Wayland cannot hide a window, so closing it to the tray
 drops the window and its surface; without a tray, closing quits.
 
+The Windows notification-area icon calls `Shell_NotifyIconW` through windows-sys, already a dependency, from a hidden
+window on the winit thread, whose messages winit's own pump dispatches: no thread, no timer and no new crate. The
+tray-icon crate was not needed for one icon and a three-item menu. The window is top-level but never shown, because a
+message-only window misses the `TaskbarCreated` broadcast that tells it to add the icon again after Explorer restarts.
+Explorer sends it on a display scale change too, and each add loads the icon at the size for the taskbar's DPI then, so
+it stays sharp. Being top-level, the window also gets the `WM_CLOSE` a graceful `taskkill` sends, which quits like the
+menu's Quit instead of destroying the window and leaving a dead icon. Shell calls return quickly or time out, so unlike
+D-Bus they can stay on the winit thread. The popup menu runs its modal loop there too, which keeps dispatching the
+window's messages.
+
+The macOS menu bar icon is an `NSStatusItem` made with objc2, objc2-foundation and objc2-app-kit at the versions winit
+already uses, so no crate is added. Its image is a template (alpha only, drawn by `tools/icons.py`), so it follows light
+and dark menu bars. Clicking it opens its menu, as menu bar items do; the menu items' target is a small Objective-C
+class whose actions only send events to the winit loop. AppKit runs it all on the main thread, which is winit's, and
+nothing polls. The tray is created in `resumed`, since a status item made before the app finishes launching can
+misbehave. noiseman has no app bundle, so winit sets the activation policy: accessory, which means no Dock icon and no
+menu bar menus, yet the window still takes the keyboard once the app is activated, so it never switches to regular.
+Activation happens when the window opens from the menu; hiding the app when it closes returns the focus to the previous
+one. winit's default menu is off: its Quit (Cmd-Q) calls `terminate:`, which ends the process without stopping the
+player, so the window handles Cmd-Q (quit) and Cmd-W (close) itself.
+
 ## The web demo
 
 The browser demo runs the same `crates/core` compiled to `wasm32-unknown-unknown`, so it sounds the same as the

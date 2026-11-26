@@ -6,7 +6,7 @@ use ksni::menu::{CheckmarkItem, StandardItem};
 use ksni::{MenuItem, OfflineReason, ToolTip};
 use winit::event_loop::EventLoopProxy;
 
-use super::{Event, TrayState, send_or_log};
+use super::{Event, TrayState, description, send_or_log};
 
 pub struct Item {
     proxy: EventLoopProxy<Event>,
@@ -33,8 +33,7 @@ impl ksni::Tray for Item {
     }
 
     fn tool_tip(&self) -> ToolTip {
-        let description = format!("{} noise{}", self.state.kind.label(), if self.state.muted { ", muted" } else { "" });
-        ToolTip { title: "noiseman".into(), description, ..Default::default() }
+        ToolTip { title: "noiseman".into(), description: description(self.state), ..Default::default() }
     }
 
     fn activate(&mut self, _: i32, _: i32) {

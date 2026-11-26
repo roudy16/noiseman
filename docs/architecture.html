@@ -163,7 +163,7 @@ a { color: var(--accent); }
         <text class="lbl" x="652" y="281" text-anchor="middle">wasm32</text>
       </svg>
     </div>
-    <figcaption>The TUI, GUI and most CLI commands start the daemon if none is running (detached, so it outlives the terminal: <code>setsid</code> on Unix, its own process group on Windows); <code>status</code>, <code>mute</code> and <code>stop</code> never do. Leaving the CLI or TUI keeps the noise playing; in the GUI, closing the window hides it to the system tray on Linux, and elsewhere (or with no tray running) stops the daemon.</figcaption>
+    <figcaption>The TUI, GUI and most CLI commands start the daemon if none is running (detached, so it outlives the terminal: <code>setsid</code> on Unix, its own process group on Windows); <code>status</code>, <code>mute</code> and <code>stop</code> never do. Leaving the CLI or TUI keeps the noise playing; in the GUI, closing the window hides it to the system tray (the menu bar on macOS), and with no tray running stops the daemon.</figcaption>
   </figure>
 </section>
 

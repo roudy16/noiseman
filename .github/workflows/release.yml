@@ -113,7 +113,7 @@ jobs:
 
           **Which file?** Each archive has a `.sha256` checksum.
           - `noiseman-<target>`: the terminal build (command line and terminal UI)
-          - `noiseman-gui-<target>`: the gui build, which adds the window (`noiseman gui`, with a tray icon on Linux)
+          - `noiseman-gui-<target>`: the gui build, which adds the window (`noiseman gui`, with a tray icon, in the menu bar on macOS)
           - Linux: `x86_64-unknown-linux-gnu` (Intel/AMD) or `aarch64-unknown-linux-gnu` (ARM)
           - macOS: `aarch64-apple-darwin` (Apple Silicon) or `x86_64-apple-darwin` (Intel)
           - Windows: `x86_64-pc-windows-msvc` (Intel/AMD) or `aarch64-pc-windows-msvc` (ARM)

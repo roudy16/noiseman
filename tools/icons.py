@@ -3,7 +3,8 @@
 # dependencies = ["pillow>=10"]
 # ///
 """Draw the noiseman icon into assets/: noiseman.svg (hicolor scalable, the web favicon), noiseman-<size>.png (hicolor
-sizes; the small ones are what trays and title bars pick) and noiseman.ico (embedded in noiseman.exe by build.rs).
+sizes; the small ones are what trays and title bars pick), noiseman.ico (embedded in noiseman.exe by build.rs) and
+noiseman-menubar.png (the macOS menu bar icon, embedded by gui/tray/macos.rs).
 
 The icon is the UIs' logo cut down for small sizes: a dark tile in the brown theme's colors (gui/mod.rs theme()) with
 the first six bars of its logo. Each PNG is drawn at its own size with the bars snapped to whole pixels, so they stay crisp.
@@ -63,6 +64,18 @@ def png(s: int) -> Image.Image:
     return im
 
 
+def menubar() -> Image.Image:
+    """The bars alone, black on transparent: macOS draws a template image from its alpha only, so it follows light and
+    dark menu bars. Drawn at 2x, 17 x 16 pt, with bars and gaps in whole points."""
+    w, gap, h = 4, 2, 32
+    im = Image.new("RGBA", (len(BARS) * (w + gap) - gap, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+    for i, b in enumerate(BARS):
+        x = i * (w + gap)
+        draw.rectangle((x, h - h * b // 16, x + w - 1, h - 1), fill=(0, 0, 0, 255))
+    return im
+
+
 def svg() -> str:
     s = 256
     (x0, y0, x1, y1), radius, line, bars = layout(s)
@@ -99,7 +112,9 @@ def main() -> None:
         (ASSETS / f"noiseman-{s}.png").write_bytes(encoded[s])
     (ASSETS / "noiseman.svg").write_text(svg())
     (ASSETS / "noiseman.ico").write_bytes(ico({s: encoded[s] for s in ICO_SIZES}))
-    print(f"wrote assets/noiseman.svg, noiseman.ico and {len(PNG_SIZES)} PNGs ({', '.join(map(str, PNG_SIZES))} px)")
+    menubar().save(ASSETS / "noiseman-menubar.png", optimize=True)
+    sizes = ", ".join(map(str, PNG_SIZES))
+    print(f"wrote assets/noiseman.svg, noiseman.ico, noiseman-menubar.png and {len(PNG_SIZES)} PNGs ({sizes} px)")
 
 
 if __name__ == "__main__":

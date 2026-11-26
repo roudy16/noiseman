@@ -37,7 +37,7 @@ More info > Run anyway at the SmartScreen prompt, or run `Unblock-File` on the .
 
 ```sh
 nsm              # terminal UI
-nsm gui          # window, in the gui build (with a tray icon on Linux)
+nsm gui          # window, in the gui build (with a tray icon, in the menu bar on macOS)
 nsm play brown   # play in the background: brown, white, blue, pink or violet
 nsm vol +10      # louder (or vol 30, vol -10)
 nsm toggle       # mute or unmute
@@ -51,7 +51,8 @@ profile).
 
 In the terminal UI, `1`-`5` pick a noise, `↑`/`↓` or `k`/`j` cycle it, `←`/`→` or `h`/`l` change the volume, `m` or
 space mutes, and `s` stops. `q` or `Esc` closes the UI and leaves the noise playing. The window takes the same keys
-(there `q` hides it to the tray); the browser demo takes the noise, volume and mute ones.
+(there `q` hides it to the tray; on macOS so does Cmd-W, and Cmd-Q stops); the browser demo takes the noise, volume and
+mute ones.
 
 Muted, the player releases the audio device and uses no CPU.
 [How it works](https://roudy16.github.io/noiseman/architecture/) explains the design.

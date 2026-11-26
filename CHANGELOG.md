@@ -11,6 +11,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   GitHub Discussions.
 - Each release file (archives, checksums and both installers) has a signed build provenance attestation; check a
   download with `gh attestation verify <file> --repo roudy16/noiseman` (see SECURITY.md).
+- Windows: the gui build has a notification-area icon. Left-click shows or hides the window; right-click opens Show/Hide
+  window, Mute and Quit. Closing the window (or `q`, Esc) hides it to the icon and keeps the noise playing, as on Linux.
+- macOS: the gui build has a menu bar icon with Show/Hide window, Mute and Quit. Closing the window (close button, `q`,
+  Esc or Cmd-W) hides it to the menu bar and keeps the noise playing; Cmd-Q quits and stops the noise. There is no Dock
+  icon.
 
 ### Changed
 

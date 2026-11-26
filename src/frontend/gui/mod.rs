@@ -1,17 +1,4 @@
-#[cfg(target_os = "linux")]
 mod tray;
-#[cfg(not(target_os = "linux"))]
-mod tray {
-    pub enum Tray {}
-
-    pub fn spawn(_: winit::event_loop::EventLoopProxy<super::Event>, _: super::TrayState) {}
-
-    impl Tray {
-        pub fn sync(&mut self, _: super::TrayState) {
-            match *self {}
-        }
-    }
-}
 
 use std::num::NonZeroU32;
 use std::process::ExitCode;
@@ -30,7 +17,8 @@ use super::client::{Client, Sender};
 use crate::platform;
 use crate::protocol::{Command, Kind, State};
 
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+// Only Linux and Windows lose a tray (TrayGone); elsewhere there is none to lose.
+#[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
 enum Event {
     Reply(Result<State, String>),
     PlayerGone(Option<String>),
@@ -41,8 +29,8 @@ enum Event {
     TrayReady(tray::Tray),
 }
 
-// Fields are only read by tray.rs.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+// Fields are only read by the tray backends.
+#[cfg_attr(not(any(target_os = "linux", windows, target_os = "macos")), allow(dead_code))]
 #[derive(Clone, Copy, PartialEq)]
 struct TrayState {
     shown: bool,
@@ -399,7 +387,7 @@ impl App {
         el.exit();
     }
 
-    /// The close button, `q` or Esc: hide to the tray, or quit when there is none.
+    /// The close button, `q`, Esc or Cmd-W: hide to the tray, or quit when there is none.
     fn close(&mut self, el: &ActiveEventLoop) {
         if self.tray.is_some() {
             self.hide();
@@ -476,6 +464,8 @@ impl App {
 impl ApplicationHandler<Event> for App {
     fn resumed(&mut self, el: &ActiveEventLoop) {
         self.show(el);
+        // Here rather than before the loop runs: a macOS status item wants the app to have finished launching.
+        tray::spawn(self.proxy.clone(), self.tray_state());
     }
 
     fn user_event(&mut self, el: &ActiveEventLoop, event: Event) {
@@ -571,6 +561,15 @@ impl ApplicationHandler<Event> for App {
                 ElementState::Released => {}
             },
             WindowEvent::ModifiersChanged(m) => self.mods = m.state(),
+            // With winit's default menu off (`exec`), these reach the window.
+            WindowEvent::KeyboardInput {
+                event: KeyEvent { logical_key: Key::Character(c), state: ElementState::Pressed, repeat: false, .. },
+                ..
+            } if cfg!(target_os = "macos") && self.mods == ModifiersState::SUPER => match c.as_str() {
+                "q" => self.quit(el),
+                "w" => self.close(el),
+                _ => {}
+            },
             WindowEvent::KeyboardInput {
                 event: KeyEvent { logical_key, state: ElementState::Pressed, repeat, .. },
                 ..
@@ -613,7 +612,15 @@ pub fn run() -> ExitCode {
 }
 
 fn exec() -> Result<ExitCode, String> {
-    let event_loop = EventLoop::with_user_event().build().map_err(|e| format!("cannot start event loop: {e}"))?;
+    let mut builder = EventLoop::with_user_event();
+    // No Dock icon: the window hides to the menu bar. No default menu either, whose Cmd-Q would end the process
+    // without stopping the player; the window handles Cmd-Q and Cmd-W itself.
+    #[cfg(target_os = "macos")]
+    {
+        use winit::platform::macos::{ActivationPolicy, EventLoopBuilderExtMacOS};
+        builder.with_activation_policy(ActivationPolicy::Accessory).with_default_menu(false);
+    }
+    let event_loop = builder.build().map_err(|e| format!("cannot start event loop: {e}"))?;
     let proxy = event_loop.create_proxy();
     let Client { mut sender, mut receiver, warning, .. } = Client::connect(true)?;
     let first = match sender.send(Command::Watch).and_then(|()| receiver.recv())? {
@@ -648,8 +655,7 @@ fn exec() -> Result<ExitCode, String> {
         refit: false,
         reopened_at: None,
     };
-    // The window is created later, in `resumed`.
-    tray::spawn(app.proxy.clone(), TrayState { shown: true, ..app.tray_state() });
+    // The window and the tray are created later, in `resumed`.
     event_loop.run_app(&mut app).map_err(|e| format!("event loop failed: {e}"))?;
     Ok(if app.failed { ExitCode::FAILURE } else { ExitCode::SUCCESS })
 }
