@@ -109,8 +109,10 @@ function Set-Nsm($dir) {
     $other = Get-Command nsm -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ((Test-Path $nsm) -and -not (Test-Ours $nsm)) {
         Write-Warning "$nsm already exists and is not noiseman's; not linking nsm"
+        Write-Warning "To type nsm for noiseman in PowerShell anyway, add this line to your profile (`$PROFILE): Set-Alias nsm noiseman"
     } elseif ($other -and $other.Source -ne $nsm -and -not (Test-Ours $other.Source)) {
         Write-Warning "nsm on PATH is $($other.Source), not noiseman; not linking nsm"
+        Write-Warning "To type nsm for noiseman in PowerShell anyway, add this line to your profile (`$PROFILE): Set-Alias nsm noiseman"
     } else {
         # The old link still points at the previous binary (renamed aside): replace it the same way.
         if (Test-Path $nsm) { Move-Aside $nsm }

@@ -82,15 +82,20 @@ explain_failure() {
     esac
 }
 
+nsm_skipped() {
+    echo "warning: $1; not linking nsm" >&2
+    echo "  to type nsm for noiseman anyway, add this line to your shell's startup file: alias nsm=noiseman" >&2
+}
+
 link_nsm() {
     dir=$1
     # Never replace or shadow someone else's `nsm`: warn and leave it be.
     other=$(command -v nsm || true)
     if { [ -e "$dir/nsm" ] || [ -L "$dir/nsm" ]; } && [ "$(readlink "$dir/nsm" || true)" != noiseman ]; then
-        echo "warning: $dir/nsm already exists and is not noiseman's; not linking nsm" >&2
+        nsm_skipped "$dir/nsm already exists and is not noiseman's"
     elif [ -n "$other" ] && [ "$other" != "$dir/nsm" ] &&
         [ "$(basename "$(readlink -f "$other" 2>/dev/null || echo "$other")")" != noiseman ]; then
-        echo "warning: nsm on PATH is $other, not noiseman; not linking nsm" >&2
+        nsm_skipped "nsm on PATH is $other, not noiseman"
     elif [ ! -L "$dir/nsm" ]; then
         ln -s noiseman "$dir/nsm"
         echo "Linked $dir/nsm"

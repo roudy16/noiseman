@@ -45,7 +45,8 @@ nsm help         # every command
 ```
 
 `nsm` is the installers' short alias for `noiseman`. They skip it if another `nsm` is already installed; then use
-`noiseman`.
+`noiseman`, or add `alias nsm=noiseman` to your shell's startup file (in PowerShell, `Set-Alias nsm noiseman` to your
+profile).
 
 In the terminal UI, `1`-`5` pick a noise, `↑`/`↓` or `k`/`j` cycle it, `←`/`→` or `h`/`l` change the volume, `m` or
 space mutes, and `s` stops. `q` or `Esc` closes the UI and leaves the noise playing. The window takes the same keys
