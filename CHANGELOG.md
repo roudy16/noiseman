@@ -16,6 +16,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   download run before it.
 - Linux needs glibc 2.34, not 2.35 as stated before: the binaries never needed more, so RHEL 9 and its rebuilds,
   Amazon Linux 2023 and Fedora 35 can run them too.
+- Releases check what they ship: each Linux and Apple Silicon build installs its own archives with `install.sh` and
+  checks the installed version, and the Linux binaries must need exactly glibc 2.34, as the README states; a failure
+  stops the release before publishing. The release notes link to the README's install section instead of repeating it.
 
 ### Fixed
 

@@ -95,8 +95,9 @@ _install variant:
     [[ $(uname -s) == Linux ]] || exit 0
     share="$HOME/.local/share"
     install -Dm644 assets/noiseman.svg "$share/icons/hicolor/scalable/apps/noiseman.svg"
-    for s in 16 22 24 32 48 64 128 256; do
-        install -Dm644 assets/noiseman-$s.png "$share/icons/hicolor/${s}x${s}/apps/noiseman.png"
+    for png in assets/noiseman-[0-9]*.png; do
+        s=${png//[!0-9]/}
+        install -Dm644 "$png" "$share/icons/hicolor/${s}x${s}/apps/noiseman.png"
     done
     install -d "$share/applications"
     # As in tools/package.sh: the template opens the window; the terminal build's entry runs the TUI in a terminal.
@@ -112,6 +113,7 @@ package target=`rustc -vV | sed -n 's/^host: //p'` variant="":
 # build the web demo (static files) into target/web
 web:
     cargo build -q --release -p noiseman-web --target wasm32-unknown-unknown
+    rm -rf target/web
     mkdir -p target/web
     cp web/site/* target/web/
     cp target/wasm32-unknown-unknown/release/noiseman_web.wasm target/web/noiseman.wasm

@@ -29,7 +29,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates curl git gcc libc6-dev pkg-config libasound2-dev python3
+          apt-get install -y --no-install-recommends ca-certificates curl git gcc libc6-dev pkg-config libasound2-dev python3 binutils
       - uses: actions/checkout@v7
       # licenses.py; the Windows ARM image does not promise a Python on PATH.
       - uses: actions/setup-python@v7
@@ -49,6 +49,30 @@ jobs:
       # Both variants in one job: they share the target's dependency builds.
       - run: tools/package.sh ${{ matrix.target }} && tools/package.sh ${{ matrix.target }} gui
         shell: bash
+      # README.md states glibc 2.34 as the minimum, and install.sh's explain_failure lists the distros that have it.
+      - name: Check the binaries need glibc 2.34
+        if: runner.os == 'Linux'
+        run: |
+          for archive in target/dist/*.tar.gz; do
+            name=$(basename "$archive" .tar.gz)
+            tar -xzOf "$archive" "$name/noiseman" > "$RUNNER_TEMP/noiseman"
+            glibc=$(objdump -T "$RUNNER_TEMP/noiseman" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)
+            [ "$glibc" = GLIBC_2.34 ] ||
+              { echo "$name needs $glibc, not GLIBC_2.34: update README.md and tools/install.sh's hint"; exit 1; }
+          done
+      # x86_64-apple-darwin builds on an arm64 runner, where install.sh picks the aarch64 archive; Windows is manual.
+      - name: Install the archives with install.sh
+        if: runner.os != 'Windows' && matrix.target != 'x86_64-apple-darwin'
+        shell: bash
+        run: |
+          export NOISEMAN_BASE_URL=file://$PWD/target/dist NOISEMAN_INSTALL_DIR=$RUNNER_TEMP/bin
+          export XDG_DATA_HOME=$RUNNER_TEMP/share HOME=$RUNNER_TEMP/home
+          mkdir -p "$HOME"
+          for gui in "" 1; do
+            NOISEMAN_GUI=$gui sh tools/install.sh
+            version=$("$NOISEMAN_INSTALL_DIR/noiseman" --version)
+            [ "$version" = "noiseman ${GITHUB_REF_NAME#v}" ] || { echo "installed $version, tag $GITHUB_REF_NAME"; exit 1; }
+          done
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.target }}
@@ -66,7 +90,7 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      # The tag's CHANGELOG.md section, then install help; a tag without a section fails here, before publishing.
+      # The tag's CHANGELOG.md section, then which file is which; a tag without a section fails here, before publishing.
       - name: Write the release notes
         run: |
           # GitHub keeps single newlines in release notes, so join the CHANGELOG's wrapped continuation lines.
@@ -78,27 +102,7 @@ jobs:
 
           ## Install
 
-          Linux and macOS:
-
-          ```sh
-          curl -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh | sh
-          ```
-
-          Windows 10 (1803 or later) and 11, in PowerShell:
-
-          ```powershell
-          irm https://github.com/roudy16/noiseman/releases/latest/download/install.ps1 | iex
-          ```
-
-          The installers fetch the terminal build (command line and terminal UI). For the desktop window, the gui build:
-
-          ```sh
-          curl -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh | NOISEMAN_GUI=1 sh
-          ```
-
-          ```powershell
-          $env:NOISEMAN_GUI = '1'; irm https://github.com/roudy16/noiseman/releases/latest/download/install.ps1 | iex
-          ```
+          See [Install](https://github.com/roudy16/noiseman#install) in the README for the installers and the unsigned binaries.
 
           **Which file?** Each archive has a `.sha256` checksum.
           - `noiseman-<target>`: the terminal build (command line and terminal UI)
@@ -106,10 +110,6 @@ jobs:
           - Linux: `x86_64-unknown-linux-gnu` (Intel/AMD) or `aarch64-unknown-linux-gnu` (ARM)
           - macOS: `aarch64-apple-darwin` (Apple Silicon) or `x86_64-apple-darwin` (Intel)
           - Windows: `x86_64-pc-windows-msvc` (Intel/AMD) or `aarch64-pc-windows-msvc` (ARM)
-
-          **Downloaded by hand, the binaries are not signed:**
-          - macOS: run `xattr -d com.apple.quarantine noiseman`, or allow it in System Settings > Privacy & Security.
-          - Windows: in the SmartScreen prompt, choose More info > Run anyway, or run `Unblock-File` on the .zip first.
           EOF
           cat notes.md
       # --generate-notes appends GitHub's notes (the Full Changelog link) after the file's.

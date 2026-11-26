@@ -3,7 +3,8 @@
 #   curl -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh | sh
 # It installs the terminal build (CLI + TUI); NOISEMAN_GUI=1 installs the build with the desktop window instead:
 #   curl -fsSL https://github.com/roudy16/noiseman/releases/latest/download/install.sh | NOISEMAN_GUI=1 sh
-# NOISEMAN_INSTALL_DIR overrides the directory (default ~/.local/bin); NOISEMAN_VERSION (e.g. v0.1.0) picks a release.
+# NOISEMAN_INSTALL_DIR overrides the directory (default ~/.local/bin); NOISEMAN_VERSION (e.g. v0.1.0) picks a release;
+# NOISEMAN_BASE_URL replaces the download base (the release CI installs file://$PWD/target/dist; file:// needs curl).
 # On Linux it also installs icons and a desktop entry to ~/.local/share, as `just install` does.
 # Everything is inside main, called on the last line, so a download cut short runs nothing.
 set -eu
@@ -139,7 +140,9 @@ main() {
         *) die "no prebuilt binary for $(uname -s); build from source ($repo)" ;;
     esac
     check_system "$os" "$target"
-    if [ -n "${NOISEMAN_VERSION:-}" ]; then
+    if [ -n "${NOISEMAN_BASE_URL:-}" ]; then
+        base=$NOISEMAN_BASE_URL
+    elif [ -n "${NOISEMAN_VERSION:-}" ]; then
         base=$repo/releases/download/$NOISEMAN_VERSION
     else
         base=$repo/releases/latest/download

@@ -1,11 +1,10 @@
-# Builds the web demo into target/web and publishes it to GitHub Pages.
+# Builds the web demo into target/web (`just web`) and publishes it to GitHub Pages.
 # One-time setup: repository Settings -> Pages -> Source: "GitHub Actions".
 name: Pages
 
 on:
   push:
     branches: [main]
-    paths: [crates/core/**, web/**, docs/**, assets/noiseman.svg, assets/noiseman-web.png, .github/workflows/pages.yml]
   workflow_dispatch:
 
 permissions:
@@ -20,20 +19,13 @@ jobs:
   build:
     runs-on: ubuntu-slim
     steps:
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends just
       - uses: actions/checkout@v7
       # Third-party action pinned to a commit; bump the SHA (and comment) to update.
       - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           targets: wasm32-unknown-unknown
-      - name: Build web demo
-        run: |
-          cargo build -q --release -p noiseman-web --target wasm32-unknown-unknown
-          mkdir -p target/web/architecture target/web/preview
-          cp web/site/* target/web/
-          cp target/wasm32-unknown-unknown/release/noiseman_web.wasm target/web/noiseman.wasm
-          cp assets/noiseman.svg target/web/favicon.svg
-          cp docs/architecture.html target/web/architecture/index.html
-          cp assets/noiseman-web.png target/web/preview/noiseman.png
+      - run: just web
       - uses: actions/upload-pages-artifact@v5
         with:
           path: target/web
