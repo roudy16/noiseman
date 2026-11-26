@@ -24,6 +24,14 @@ versions follow [Semantic Versioning](https://semver.org/).
   half again, since the noise generator is chosen once per buffer instead of every sample. The web demo's module
   shrinks from 6.1 to 4.2 KB.
 
+### Security
+
+- On Linux and macOS, `$XDG_RUNTIME_DIR` is used only when it is an absolute path to a directory owned by the user with
+  mode 0700 (not a symlink); otherwise noiseman falls back to its private `noiseman-<uid>` directory in the temp dir,
+  and the player's log says why. The lock file and log are created 0600 and opened without following symlinks, and
+  the lock file is no longer truncated, so a symlink planted in a shared runtime directory can no longer empty another
+  file.
+
 ## [0.1.1] - 2026-11-25
 
 ### Added

@@ -151,7 +151,7 @@ pub fn compatible(theirs: &str, ours: &str) -> bool {
 
 /// The per-user private directory for the socket, the lock file and the daemon log.
 /// Absolute, so the daemon (which leaves its starting directory) and its clients agree on a relative
-/// `$XDG_RUNTIME_DIR` or `$TMPDIR`.
+/// `$XDG_RUNTIME_DIR` on Windows (Unix passes over one, and makes its fallback absolute).
 pub fn runtime_dir() -> Result<PathBuf, String> {
     let dir = platform::runtime_dir()?;
     std::path::absolute(&dir).map_err(|e| format!("cannot resolve {}: {e}", dir.display()))

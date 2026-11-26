@@ -15,9 +15,12 @@ Only the latest release gets fixes. The installers always fetch it.
 
 - noiseman makes no network connections. The browser demo is a static page that loads nothing beyond its own files.
 - The player and its clients talk over a local socket that only the same user can reach. On Linux and macOS it lives in
-  `$XDG_RUNTIME_DIR` or, failing that, a `noiseman-<uid>` directory in the temp dir, which must be owned by the user
-  with mode 0700; the socket is 0600. On Windows it lives in `%LOCALAPPDATA%\noiseman`, whose ACL admits only the user,
-  SYSTEM and administrators.
+  `$XDG_RUNTIME_DIR` or, when that is unset or not private, a `noiseman-<uid>` directory in the temp dir. Either must be
+  an absolute path to a real directory (not a symlink) owned by the user with no group or other access (mode 0700); the
+  daemon logs why it passed over `$XDG_RUNTIME_DIR`. The socket, lock file and log are 0600, and the lock file and log
+  are opened without following symlinks and never truncated. On Windows it lives in `%LOCALAPPDATA%\noiseman`, whose
+  ACL admits only the user, SYSTEM and administrators; `$XDG_RUNTIME_DIR`, which only the tests and gates set there, is
+  taken as given.
 - Anything running as the same user can control the player and read its log; that is by design, not a vulnerability.
 - The installers download over HTTPS from GitHub Releases and check each archive against its published SHA-256 before
   installing. They trust GitHub and the HTTPS connection; the binaries are not code-signed.

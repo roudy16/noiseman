@@ -4,6 +4,8 @@
 //! Each backend (`unix.rs`, `windows.rs`) provides the same items with the same signatures:
 //!
 //! - [`runtime_dir`]: a per-user private directory for the socket, the lock file and the daemon log.
+//! - [`runtime_dir_rejected`]: why `runtime_dir` passed over `$XDG_RUNTIME_DIR` (not private), if it did.
+//! - [`open_private`]: opens a file in the runtime dir without following a symlink there, creating it owner-only.
 //! - [`restrict_to_owner`]: makes a just-bound socket file reachable only by its owner.
 //! - [`spawn_detached`]: starts a process that outlives the terminal (and the frontend) that started it.
 //! - [`terminal_truecolor`]: whether the terminal on stdout renders 24-bit color though its environment does not say
@@ -27,7 +29,9 @@ compile_error!("noiseman supports Unix (Linux, macOS) and Windows");
 
 #[cfg(feature = "gui")]
 pub use imp::alert_if_no_console;
-pub use imp::{net, restrict_to_owner, runtime_dir, spawn_detached, terminal_truecolor};
+pub use imp::{
+    net, open_private, restrict_to_owner, runtime_dir, runtime_dir_rejected, spawn_detached, terminal_truecolor,
+};
 
 #[cfg(test)]
 mod tests {

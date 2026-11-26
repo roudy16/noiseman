@@ -1,6 +1,6 @@
 //! Windows: an AF_UNIX socket (Windows 10 1803+) in a private runtime dir, a detached process, console color support.
 
-use std::fs;
+use std::fs::{self, File, OpenOptions};
 use std::io;
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
@@ -45,6 +45,9 @@ pub fn alert_if_no_console(msg: &str) {
 
 /// `$XDG_RUNTIME_DIR` if set (as on Unix, so tests and gates can run a private daemon), else `%LOCALAPPDATA%\noiseman`,
 /// whose inherited ACL admits only the user, SYSTEM and administrators.
+///
+/// `$XDG_RUNTIME_DIR` is taken as given, with no owner or DACL check: Windows and its shells never set it, only the
+/// tests and gates do, whoever sets it controls the user's environment already, and no runtime-file open truncates.
 pub fn runtime_dir() -> Result<PathBuf, String> {
     if let Some(dir) = std::env::var_os("XDG_RUNTIME_DIR") {
         return Ok(PathBuf::from(dir));
@@ -53,6 +56,16 @@ pub fn runtime_dir() -> Result<PathBuf, String> {
     let dir = PathBuf::from(base).join("noiseman");
     fs::create_dir_all(&dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
     Ok(dir)
+}
+
+/// Never: `runtime_dir` takes `$XDG_RUNTIME_DIR` as given.
+pub fn runtime_dir_rejected() -> Option<String> {
+    None
+}
+
+/// A plain open: the file inherits the runtime dir's ACL.
+pub fn open_private(opts: &mut OpenOptions, path: &Path) -> io::Result<File> {
+    opts.open(path)
 }
 
 /// Nothing to do: the socket file inherits the runtime dir's ACL, and connecting needs write access to it (which a

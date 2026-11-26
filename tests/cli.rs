@@ -22,6 +22,9 @@ impl Runtime {
         let base = if cfg!(unix) { PathBuf::from("/tmp") } else { std::env::temp_dir() };
         let dir = base.join(format!("nsm-{}-{}", std::process::id(), COUNT.fetch_add(1, Ordering::Relaxed)));
         fs::create_dir(&dir).unwrap_or_else(|e| panic!("cannot create {}: {e}", dir.display()));
+        // noiseman passes over an `$XDG_RUNTIME_DIR` that others can enter.
+        #[cfg(unix)]
+        fs::set_permissions(&dir, std::os::unix::fs::PermissionsExt::from_mode(0o700)).expect("cannot chmod 0700");
         Runtime { dir, daemon: None }
     }
 
@@ -83,4 +86,26 @@ fn status_vol_stop_across_processes() {
     rt.wait_for("the socket to go", |_| !sock.exists());
     rt.wait_for("the daemon to exit", |rt| rt.daemon.as_mut().is_some_and(|d| matches!(d.try_wait(), Ok(Some(_)))));
     assert_eq!(rt.run(&["stop"]), (Some(0), "not running\n".into(), String::new()));
+}
+
+#[cfg(unix)]
+#[test]
+fn lock_symlink_is_refused_not_truncated() {
+    let mut rt = Runtime::new();
+    let victim = rt.dir.join("victim");
+    fs::write(&victim, "keep").expect("cannot write the victim file");
+    std::os::unix::fs::symlink(&victim, rt.dir.join("noiseman.lock")).expect("cannot plant the symlink");
+
+    let log = File::create(rt.dir.join("daemon.log")).expect("cannot create the daemon log");
+    let daemon = rt.command(&["daemon", "--muted"]).stdout(Stdio::null()).stderr(log).spawn();
+    rt.daemon = Some(daemon.expect("cannot start the daemon"));
+    let mut status = None;
+    rt.wait_for("the daemon to refuse the lock", |rt| {
+        status = rt.daemon.as_mut().and_then(|d| d.try_wait().ok().flatten());
+        status.is_some()
+    });
+    assert!(status.is_some_and(|s| !s.success()));
+    let log = fs::read_to_string(rt.dir.join("daemon.log")).expect("cannot read the daemon log");
+    assert!(log.contains("cannot open") && log.contains("noiseman.lock"), "unexpected daemon failure: {log}");
+    assert_eq!(fs::read_to_string(&victim).expect("cannot read the victim file"), "keep");
 }

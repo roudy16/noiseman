@@ -9,7 +9,7 @@ pub(crate) use log;
 mod audio;
 mod player;
 
-use std::fs::{self, File, TryLockError};
+use std::fs::{self, OpenOptions, TryLockError};
 use std::io::{self, BufRead, BufReader, Write};
 use std::net::Shutdown;
 use std::sync::Arc;
@@ -37,8 +37,13 @@ enum Msg {
 /// Runs the daemon until a `quit` request. Errors only if it cannot start.
 pub fn serve(muted: bool) -> Result<(), String> {
     log!("noiseman {} started (protocol {})", env!("CARGO_PKG_VERSION"), protocol::PROTOCOL);
+    if let Some(why) = platform::runtime_dir_rejected() {
+        log!("noiseman: ignoring $XDG_RUNTIME_DIR: {why}");
+    }
     let lock_path = protocol::runtime_dir()?.join("noiseman.lock");
-    let lock = File::create(&lock_path).map_err(|e| format!("cannot create {}: {e}", lock_path.display()))?;
+    // Never truncated: only its lock matters.
+    let lock = platform::open_private(OpenOptions::new().write(true).create(true), &lock_path)
+        .map_err(|e| format!("cannot open {}: {e}", lock_path.display()))?;
     // A daemon that just quit holds the lock through its fade-out, after removing its socket.
     let until = Instant::now() + LOCK_WAIT;
     loop {

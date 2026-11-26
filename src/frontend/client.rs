@@ -94,10 +94,7 @@ fn protocol_warning(theirs: &str) -> Option<String> {
 fn start_daemon() -> Result<UnixStream, String> {
     let exe = std::env::current_exe().map_err(|e| format!("cannot find own executable: {e}"))?;
     let log_path = protocol::runtime_dir()?.join("noiseman.log");
-    let log = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&log_path)
+    let log = platform::open_private(OpenOptions::new().create(true).append(true), &log_path)
         .map_err(|e| format!("cannot open {}: {e}", log_path.display()))?;
     let mut cmd = process::Command::new(exe);
     cmd.arg("daemon").stdin(Stdio::null()).stdout(Stdio::null()).stderr(log);
