@@ -118,7 +118,7 @@ pub enum Kind { White, Pink, Brown, Blue, Violet }
 impl Kind {
     pub const ALL: [Kind; 5] = [Kind::White, Kind::Pink, Kind::Brown, Kind::Blue, Kind::Violet];
     pub fn label(self) -> &'static str { /* match */ }
-    pub fn from_u8(v: u8) -> Kind { Self::ALL.get(v as usize).copied().unwrap_or(Kind::White) }
+    pub fn from_u8(v: u8) -> Kind { Self::ALL.into_iter().find(|k| *k as u8 == v).unwrap_or(Kind::Brown) }
     pub fn parse(s: &str) -> Option<Kind>;                // case-insensitive label
 }
 pub fn gain(vol: i32) -> f32;                             // (vol/100)^2, vol clamped to 0..=100

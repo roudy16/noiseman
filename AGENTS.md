@@ -27,7 +27,7 @@ Cargo workspace: the root package `noiseman` (the binary), `crates/core` and `we
   - `player.rs`: `Player`: volume, mute, stream lifetime (drop after fade), audio-lost restart, `State`
   - `audio.rs`: `GAIN`/`KIND` atomics (private; `kind()`, `set_kind()`, `set_gain()`), `AudioError`, `start()` returning `Output` (`buffer_time()`; on Linux the PulseAudio host, then ALSA, failing as `NoPulse` so the error names the missing server), `build::<T>()`, data and error callbacks (a core `Voice` per stream)
 - `src/frontend/` (no backend imports)
-  - `mod.rs`: argument dispatch (none/`tui`, `gui`, `help`, `version`, else CLI)
+  - `mod.rs`: argument dispatch (none/`tui`, `gui`, `help`, `version`, else CLI); the kind colours (`colors`, `GREEN`, `RED`) both UIs draw with
   - `client.rs`: `Client { sender, receiver, warning, started }`, `connect(autostart)` (asks an already-running daemon its `protocol`; `warning` when incompatible), daemon autostart (`platform::spawn_detached`, log to the runtime dir)
   - `cli.rs`: subcommands and `USAGE`; a command that asked for sound (or started the daemon) and left it muted by an audio error exits 1
   - `tui.rs`: crossterm screen (refuses to start without a terminal); one thread reads keys, one reads pushed states, the main thread draws

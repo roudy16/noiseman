@@ -20,6 +20,8 @@ pub struct Client {
     pub started: bool,
 }
 
+pub const NOT_RUNNING: &str = "not running";
+
 pub struct Sender(UnixStream);
 
 pub struct Receiver(BufReader<UnixStream>);
@@ -32,7 +34,7 @@ impl Client {
             Ok(s) => (s, false),
             Err(_) if autostart => (start_daemon()?, true),
             Err(e) if matches!(e.kind(), io::ErrorKind::NotFound | io::ErrorKind::ConnectionRefused) => {
-                return Err("not running".into());
+                return Err(NOT_RUNNING.into());
             }
             Err(e) => return Err(format!("cannot connect to {}: {e}", path.display())),
         };

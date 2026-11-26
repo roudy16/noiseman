@@ -92,8 +92,8 @@ const WIN_H: i32 = CARD.y + CARD.h + ERR_H + 24;
 const BG: u32 = 0x1d1d1d;
 const FG: u32 = 0xdcdcdc;
 const DIM: u32 = 0x8b8b8b;
-const GREEN: u32 = 0x4cae5a;
-const RED: u32 = 0xd94f45;
+const GREEN: u32 = rgb(super::GREEN);
+const RED: u32 = rgb(super::RED);
 /// tui.rs LOGO as bar heights in sixteenths of the tile.
 const LOGO_BARS: [i32; 12] = [5, 11, 7, 14, 9, 3, 12, 6, 15, 8, 4, 10];
 
@@ -139,16 +139,13 @@ fn mix(a: u32, b: u32, pct: u32) -> u32 {
     (0..3).map(|i| (((a >> (i * 8) & 0xff) * pct + (b >> (i * 8) & 0xff) * (100 - pct)) / 100) << (i * 8)).sum()
 }
 
+const fn rgb([r, g, b]: [u8; 3]) -> u32 {
+    u32::from_be_bytes([0, r, g, b])
+}
+
 fn theme(kind: Kind) -> Theme {
-    let accent = match kind {
-        Kind::White => 0x8c96a8,
-        Kind::Pink => 0xd4708f,
-        Kind::Brown => 0xd08f4a,
-        Kind::Blue => 0x4f8fd6,
-        Kind::Violet => 0x9b74d6,
-    };
-    let track = mix(accent, 0x8a8a8a, 35);
-    Theme { accent, track, rest: mix(track, BG, 50), tile: mix(accent, 0, 22) }
+    let [accent, track, tile] = super::colors(kind).map(rgb);
+    Theme { accent, track, rest: mix(track, BG, 50), tile }
 }
 
 /// The error line pushes the card's bottom down; without it the layout is centered in the same window.
@@ -265,18 +262,14 @@ fn paint(pixels: &mut [u32], width: i32, height: i32, scale: i32, s: &State, tra
     }
     for (i, k) in Kind::ALL.iter().enumerate() {
         let selected = *k == s.kind;
-        let x = c.text(kind_span(i).0, KINDS_Y, &"12345"[i..=i], if selected { t.accent } else { t.track }, false);
+        let x = c.text(kind_span(i).0, KINDS_Y, &(i + 1).to_string(), if selected { t.accent } else { t.track }, false);
         c.text(x + 4, KINDS_Y, k.label(), if selected { t.accent } else { FG }, selected);
     }
     let vol = s.vol.clamp(0, 100);
     c.rect(BAR, t.rest);
     c.rect(Rect { w: BAR.w * vol / 100, ..BAR }, level);
-    let mut digits = *b"100%";
-    let n = 2 - (vol >= 10) as usize - (vol == 100) as usize;
-    digits[1] = b'0' + (vol / 10 % 10) as u8;
-    digits[2] = b'0' + (vol % 10) as u8;
-    let pct = std::str::from_utf8(&digits[n..]).unwrap_or("?");
-    c.text(right - text_w(pct), VOL_Y, pct, FG, false);
+    let pct = format!("{vol}%");
+    c.text(right - text_w(&pct), VOL_Y, &pct, FG, false);
     let (label, ink) = if s.muted {
         c.fill(TOGGLE, t.accent);
         ("Play", BG)

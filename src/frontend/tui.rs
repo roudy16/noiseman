@@ -166,9 +166,12 @@ fn action(key: KeyEvent, kind: Option<Kind>) -> Action {
         KeyCode::Char('m' | ' ') => Action::Send(Command::ToggleMute),
         KeyCode::Left | KeyCode::Char('-' | 'h') => Action::Send(Command::VolBy(-5)),
         KeyCode::Right | KeyCode::Char('+' | '=' | 'l') => Action::Send(Command::VolBy(5)),
-        KeyCode::Char(c @ '1'..='5') => Action::Send(Command::Kind(Kind::ALL[c as usize - '1' as usize])),
         KeyCode::Down | KeyCode::BackTab | KeyCode::Char('j') => cycle(Kind::ALL.len() - 1),
         KeyCode::Up | KeyCode::Tab | KeyCode::Char('k') => cycle(1),
+        KeyCode::Char(c) => match c.to_digit(10).map(|n| n as usize) {
+            Some(n @ 1..) if n <= Kind::ALL.len() => Action::Send(Command::Kind(Kind::ALL[n - 1])),
+            _ => Action::None,
+        },
         _ => Action::None,
     }
 }
@@ -209,26 +212,9 @@ impl Palette {
         if self.depth == 256 { cube(r, g, b) } else { Color::Rgb { r, g, b } }
     }
 
-    fn green(&self) -> Color {
-        self.rgb([0x4c, 0xae, 0x5a])
-    }
-
-    fn red(&self) -> Color {
-        self.rgb([0xd9, 0x4f, 0x45])
-    }
-
-    /// Accents are mid-tones so they read on dark and light backgrounds alike.
     fn theme(&self, kind: Kind) -> Theme {
-        let accent = match kind {
-            Kind::White => [0x8c, 0x96, 0xa8],
-            Kind::Pink => [0xd4, 0x70, 0x8f],
-            Kind::Brown => [0xd0, 0x8f, 0x4a],
-            Kind::Blue => [0x4f, 0x8f, 0xd6],
-            Kind::Violet => [0x9b, 0x74, 0xd6],
-        };
-        let track = accent.map(|v| ((v as u16 * 35 + 0x8a * 65) / 100) as u8);
-        let tile = accent.map(|v| (v as u16 * 22 / 100) as u8);
-        Theme { accent: self.rgb(accent), track: self.rgb(track), tile: self.rgb(tile) }
+        let [accent, track, tile] = super::colors(kind).map(|c| self.rgb(c));
+        Theme { accent, track, tile }
     }
 }
 
@@ -303,7 +289,7 @@ fn draw(out: &mut Stdout, p: &Palette, state: Option<&State>, problem: Option<&s
         if s.muted {
             queue!(out, MoveTo(x + w.saturating_sub(7), y), SetAttribute(Attribute::Dim), Print("◌ Muted"))?;
         } else {
-            queue!(out, MoveTo(x + w.saturating_sub(9), y), SetForegroundColor(p.green()), Print("● "))?;
+            queue!(out, MoveTo(x + w.saturating_sub(9), y), SetForegroundColor(p.rgb(super::GREEN)), Print("● "))?;
             queue!(out, ResetColor, Print("Playing"))?;
         }
         queue!(out, SetAttribute(Attribute::Reset), MoveTo(x, y + 3))?;
@@ -339,7 +325,7 @@ fn draw(out: &mut Stdout, p: &Palette, state: Option<&State>, problem: Option<&s
     }
     if let Some(e) = error {
         let e: String = format!("✕ {e}").chars().take(w as usize).collect();
-        queue!(out, MoveTo(x, y + 7), SetForegroundColor(p.red()), Print(e), ResetColor)?;
+        queue!(out, MoveTo(x, y + 7), SetForegroundColor(p.rgb(super::RED)), Print(e), ResetColor)?;
     }
     let (keys, sep) = if hint_width(&KEYS, 3) <= cols { (&KEYS, " · ") } else { (&KEYS_SHORT, " ") };
     queue!(out, MoveTo(cols.saturating_sub(hint_width(keys, sep.chars().count())) / 2, top + bh + 1))?;

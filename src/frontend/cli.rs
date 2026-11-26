@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
-use super::client::Client;
+use super::client::{Client, NOT_RUNNING};
 use crate::protocol::{Command, Kind, State};
 
 pub const USAGE: &str = "\
@@ -55,7 +55,7 @@ fn exec(args: &[String]) -> Result<(), String> {
         [stop] if stop == "stop" => (vec![Command::Quit], false),
         // A fresh player starts unmuted, so toggling it would start it silent.
         [toggle] if toggle == "toggle" => match Client::connect(false) {
-            Err(e) if e == "not running" => (vec![Command::Mute(false)], true),
+            Err(e) if e == NOT_RUNNING => (vec![Command::Mute(false)], true),
             Err(e) => return Err(e),
             Ok(mut client) => return report(&[Command::ToggleMute], &mut client),
         },
@@ -68,8 +68,8 @@ fn exec(args: &[String]) -> Result<(), String> {
         }
     };
     let mut client = match Client::connect(autostart) {
-        Err(e) if e == "not running" && cmds == [Command::Quit] => {
-            println!("not running");
+        Err(e) if e == NOT_RUNNING && cmds == [Command::Quit] => {
+            println!("{NOT_RUNNING}");
             return Ok(());
         }
         other => other?,

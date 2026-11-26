@@ -31,7 +31,7 @@ impl Kind {
     }
 
     pub fn from_u8(v: u8) -> Kind {
-        Self::ALL.get(v as usize).copied().unwrap_or(Kind::Brown)
+        Self::ALL.into_iter().find(|k| *k as u8 == v).unwrap_or(Kind::Brown)
     }
 
     pub fn parse(s: &str) -> Option<Kind> {
@@ -43,4 +43,16 @@ impl Kind {
 pub fn gain(vol: i32) -> f32 {
     let x = vol.clamp(0, 100) as f32 / 100.0;
     x * x
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Kind;
+
+    #[test]
+    fn from_u8_decodes_discriminant() {
+        for k in Kind::ALL {
+            assert_eq!(Kind::from_u8(k as u8), k);
+        }
+    }
 }
