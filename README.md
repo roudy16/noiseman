@@ -5,7 +5,7 @@ terminal, from one-line commands in your scripts and keybindings, or from a smal
 
 **[▶ Try it in your browser](https://roudy16.github.io/noiseman/)**, with nothing to install.
 
-![The noiseman terminal UI playing brown noise at 50% volume](assets/noiseman-tui.png)
+![The noiseman terminal UI: starting it, changing the volume, cycling through the five noises, muting, then closing it while the noise keeps playing](assets/noiseman-tui.gif)
 
 ## Install
 
