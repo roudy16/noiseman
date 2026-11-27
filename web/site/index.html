@@ -4,11 +4,12 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>noiseman</title>
-<meta name="description" content="White, pink, brown, blue and violet noise, generated in your browser.">
+<title>noiseman: a minimal white, pink and brown noise app</title>
+<meta name="description" content="A minimal noise app: white, pink, brown, blue and violet noise for focus and sleep, generated in your browser with nothing to install. Also a tiny desktop noise player for Linux, macOS and Windows.">
+<link rel="canonical" href="https://roudy16.github.io/noiseman/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="noiseman">
-<meta property="og:title" content="noiseman: noise in your browser">
+<meta property="og:title" content="noiseman: a minimal noise app in your browser">
 <meta property="og:description" content="White, pink, brown, blue and violet noise, generated in your browser. Nothing to install.">
 <meta property="og:url" content="https://roudy16.github.io/noiseman/">
 <meta property="og:image" content="https://roudy16.github.io/noiseman/preview/noiseman.png">
@@ -38,6 +39,9 @@
   <p class="error" id="error" role="alert" hidden></p>
 </main>
 <p class="keys"><span><kbd>1-5</kbd>/<kbd>↓↑</kbd>/<kbd>jk</kbd> noise</span> · <span><kbd>←→</kbd>/<kbd>hl</kbd> volume</span> · <span><kbd>m</kbd>/<kbd>space</kbd> mute</span></p>
+<p class="about">A minimal noise app: white, pink, brown, blue and violet noise for focus, sleep or masking
+background sound, free and with nothing to install. The desktop version is a tiny background noise player you control
+from the terminal, from scripts and keybindings, or from a tray or menu bar icon.</p>
 <p class="about">Rust compiled to a ~4 KB WebAssembly module, running in an AudioWorklet. Nothing is downloaded or
 streamed: the noise is computed on your device, and the audio engine is suspended while paused. <a href="architecture/">How it works</a>.</p>
 <p class="about"><a href="https://github.com/roudy16/noiseman#install">Install the app</a> for Linux, macOS and
